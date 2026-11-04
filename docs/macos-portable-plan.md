@@ -1,8 +1,6 @@
 # Portable macOS release plan
 
-Saved November 1, 2026 at Miguel Guhlin's request.
-
-The website announcement targets **November 8, 2026**, one week after this note. This is a planned release, not an available download. No build, scheduled task, or automatic future publication has been started by saving these notes.
+The website announces planned portable macOS downloads. This is a planned release, not an available download. No build, scheduled task, or automatic future publication has been started by saving these notes.
 
 ## Agreed first release
 

@@ -24,7 +24,7 @@ To choose a port: `python3 app.py --port 8767`. To launch without opening a brow
 
 Run `python3 build_portable.py --linux-runtime /path/to/python-linux.tar.gz --windows-runtime /path/to/python-windows.zip` using Python 3.12+.
 
-The included packages use [Astral python-build-standalone](https://github.com/astral-sh/python-build-standalone/releases/tag/20261026) CPython 3.13.18 for Linux and the [official Python 3.13.9 Windows embeddable runtime](https://www.python.org/ftp/python/3.13.9/). Runtime licenses are retained. Linux was checked using the bundled interpreter; Windows and Linux packaged-runtime checks are configured in [GitHub Actions](https://github.com/mguhlin/mguhlin.github.io/actions/workflows/postbox-checks.yml).
+The included packages use [Astral python-build-standalone](https://github.com/astral-sh/python-build-standalone/releases/tag/20261026) CPython 3.13.18 for Linux and the [official Python 3.13.9 Windows embeddable runtime](https://www.python.org/ftp/python/3.13.9/). Runtime licenses are retained. Linux was checked using the bundled interpreter; Windows and Linux packaged-runtime checks are configured in [GitHub Actions](https://github.com/mguhlin/postbox/actions/workflows/postbox-checks.yml).
 
 ## Search filters
 

@@ -41,7 +41,7 @@ Original-file deletion permanently removes EML files or rewrites MBOX archives. 
 
 PST imports stream up to 2 GB through a temporary local file; other files are limited to 100 MB. Extracted messages and attachments are held in memory. MBOX/PST parsing briefly uses a local temporary file, which is removed afterwards. Search indexes email body text and attachment filenames, not attached-file contents. DOC/DOCX previews show text rather than original layout. PDF and media formats depend on browser support. PST originals stay read-only and MSG attachment edits cannot be written back to MSG; export selected emails to EML ZIP/MBOX for editing. Contacts and calendar records are excluded; encrypted messages are not decrypted and signatures are not verified.
 
-The bundled Linux runtime and MIME/MBOX/organizer have automated checks. DOM regression checks cover navigation, reconnecting original files, deletion, auto-advance, and export with simulated file handles. Windows package contents are checked; packaged-runtime checks run on Windows and Linux in [GitHub Actions](https://github.com/mguhlin/mguhlin.github.io/actions/workflows/postbox-checks.yml).
+The bundled Linux runtime and MIME/MBOX/organizer have automated checks. DOM regression checks cover navigation, reconnecting original files, deletion, auto-advance, and export with simulated file handles. Windows package contents are checked; packaged-runtime checks run on Windows and Linux in [GitHub Actions](https://github.com/mguhlin/postbox/actions/workflows/postbox-checks.yml).
 
 Run the source checks from `app/`:
 
@@ -52,7 +52,7 @@ node test_search.cjs
 
 ## Repository and publishing
 
-This folder lives in `mguhlin/mguhlin.github.io`, published by GitHub Pages at `/postbox/`. The public page and downloads are static; the Python viewer runs only on the user's computer.
+The standalone repository is [`mguhlin/postbox`](https://github.com/mguhlin/postbox), published from `main` at `/` by GitHub Pages at **https://mguhlin.github.io/postbox/**. The public URL and download paths are unchanged from the original location in `mguhlin/mguhlin.github.io`. Postbox’s existing commit history is preserved in this repository. The public page and downloads are static; the Python viewer runs only on the user's computer.
 
 - `index.html`, `assets/`: download page and original hero artwork.
 - `downloads/`: complete portable packages, source archive, and checksums.
@@ -72,7 +72,7 @@ The SplatWorks purple theme preserves green Next and red Delete actions. [About 
 
 ## Planned macOS version
 
-Portable Apple Silicon and Intel Mac downloads are planned for **November 8, 2026**. Python will be included. [Saved scope, estimates, compatibility findings, and remaining work](docs/macos-portable-plan.md).
+Portable Apple Silicon and Intel Mac downloads are planned. Python will be included. [Scope, estimates, compatibility findings, and remaining work](docs/macos-portable-plan.md).
 
 
 ## Printing emails and exporting PDFs
