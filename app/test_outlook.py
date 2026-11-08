@@ -2,6 +2,7 @@ import io
 import json
 import mailbox
 import tempfile
+import types
 import unittest
 import zipfile
 from pathlib import Path
@@ -93,11 +94,11 @@ class OutlookTest(unittest.TestCase):
             def sendall(self, data): self.output.extend(data)
         def request(path, payload, filename=None):
             body = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
-            headers = f'Content-Length: {len(body)}\r\nX-Viewer-Token: {app.TOKEN}\r\n'
+            headers = f'Host: localhost\r\nContent-Length: {len(body)}\r\nX-Viewer-Token: {app.TOKEN}\r\n'
             if filename:
                 headers += f'X-Filename: {filename}\r\n'
             connection = Connection((f'POST {path} HTTP/1.0\r\n' + headers + '\r\n').encode() + body)
-            app.Handler(connection, ('127.0.0.1', 1234), None)
+            app.Handler(connection, ('127.0.0.1', 1234), types.SimpleNamespace(server_port=80))
             return bytes(connection.output).split(b'\r\n\r\n', 1)
 
         with patch('app.import_pst', importer):

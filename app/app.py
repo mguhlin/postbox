@@ -262,6 +262,26 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
+    def parse_request(self):
+        if not super().parse_request():
+            return False
+        # A loopback bind alone does not establish the browser's origin. Reject
+        # rebinding/foreign hostnames before serving the page containing TOKEN.
+        port = self.server.server_port
+        authorities = {f'127.0.0.1:{port}', f'localhost:{port}'}
+        if port == 80:
+            authorities.update(('127.0.0.1', 'localhost'))
+        hosts = self.headers.get_all('Host', [])
+        host = hosts[0].lower() if len(hosts) == 1 else ''
+        origins = self.headers.get_all('Origin', [])
+        fetch_site = self.headers.get('Sec-Fetch-Site', '').lower()
+        if (host not in authorities or len(origins) > 1
+                or (origins and origins[0].lower() != f'http://{host}')
+                or fetch_site not in ('', 'none', 'same-origin')):
+            self.send('{"error":"Open Postbox using its localhost startup address."}', status=403)
+            return False
+        return True
+
     def send(self, data, kind='application/json', status=200, download=None, extra=None):
         if isinstance(data, str):
             data = data.encode('utf-8')
@@ -417,6 +437,8 @@ class Handler(BaseHTTPRequestHandler):
                 raw = b''  # PST originals are never rewritten or retained.
             else:
                 raw = self.rfile.read(length)
+                if len(raw) != length:
+                    raise ValueError('The upload was interrupted. No messages were imported.')
                 imported = parse_export(raw, filename)
             sid = secrets.token_hex(12)
             SOURCES[sid] = dict(filename=filename, raw=raw, messageIds=[m['id'] for m in imported])

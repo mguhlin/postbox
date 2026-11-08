@@ -2,6 +2,7 @@ import io
 import json
 import mailbox
 import tempfile
+import types
 import unittest
 import zipfile
 from email.message import EmailMessage
@@ -117,11 +118,11 @@ class OrganizerTest(unittest.TestCase):
             def sendall(self, data): self.output.extend(data)
 
         def request(path, body, token=True):
-            headers = f'Content-Length: {len(body)}\r\n'
+            headers = f'Host: localhost\r\nContent-Length: {len(body)}\r\n'
             if token:
                 headers += f'X-Viewer-Token: {app.TOKEN}\r\n'
             connection = Connection((f'POST {path} HTTP/1.0\r\n' + headers + '\r\n').encode() + body)
-            app.Handler(connection, ('127.0.0.1', 1234), None)
+            app.Handler(connection, ('127.0.0.1', 1234), types.SimpleNamespace(server_port=80))
             return bytes(connection.output).split(b'\r\n\r\n', 1)
 
         headers, data = request('/import', self.email().as_bytes())

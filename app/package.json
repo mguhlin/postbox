@@ -1,4 +1,7 @@
 {
   "private": true,
-  "type": "commonjs"
+  "type": "commonjs",
+  "scripts": {
+    "test": "python3 -m unittest -v test_viewer.py test_previews.py test_organizer.py test_outlook.py test_print_export.py && node test_search.cjs"
+  }
 }

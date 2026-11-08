@@ -17,6 +17,8 @@ The app listens only on your computer's loopback address. Imported messages are 
 
 HTML scripts, links, remote images, and external styles are blocked. CID inline images are offered as downloadable attachments rather than embedded in HTML. Encrypted messages are not decrypted, signatures are not verified, and Outlook `.msg` messages and `.pst` archives can now be imported directly. OST/OLM and other unsupported formats must first be exported to EML/MBOX. Very large archives consume RAM; PST files are limited to 2 GB and other files to 100 MB. Attached emails remain downloadable as original message files.
 
+The server accepts only its bound localhost hostname and port, and rejects foreign origins before returning the session token or processing changes. An interrupted upload is rejected before new messages enter the session.
+
 To choose a port: `python3 app.py --port 8767`. To launch without opening a browser: add `--no-open`.
 
 

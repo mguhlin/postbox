@@ -1,5 +1,7 @@
 import json
+import io
 import threading
+import types
 import unittest
 from email.message import EmailMessage
 from urllib.error import HTTPError
@@ -9,6 +11,75 @@ import app
 
 
 class ViewerTest(unittest.TestCase):
+    def request_without_socket(self, method='GET', path='/', headers=None, body=b''):
+        class Connection:
+            def __init__(self, request):
+                self.request = io.BytesIO(request)
+                self.output = bytearray()
+
+            def makefile(self, *_args):
+                return self.request
+
+            def sendall(self, data):
+                self.output.extend(data)
+
+        fields = {'Host': '127.0.0.1:8767', **(headers or {})}
+        raw = (f'{method} {path} HTTP/1.1\r\n'
+               + ''.join(f'{key}: {value}\r\n' for key, value in fields.items())
+               + 'Connection: close\r\n\r\n').encode('latin-1') + body
+        connection = Connection(raw)
+        app.Handler(connection, ('127.0.0.1', 12345), types.SimpleNamespace(server_port=8767))
+        head, data = bytes(connection.output).split(b'\r\n\r\n', 1)
+        return int(head.split(b' ', 2)[1]), data
+
+    def test_local_request_boundary_before_token_delivery(self):
+        for host in ['127.0.0.1:8767', 'localhost:8767', 'LOCALHOST:8767']:
+            status, body = self.request_without_socket(headers={'Host': host})
+            self.assertEqual(status, 200)
+            self.assertIn(app.TOKEN.encode(), body)
+        for headers in [
+            {'Host': 'attacker.example:8767'},
+            {'Host': '127.0.0.1.attacker.example:8767'},
+            {'Host': '127.0.0.1:9999'},
+            {'Host': '127.0.0.1:8767\r\nHost: attacker.example'},
+            {'Origin': 'https://attacker.example'},
+            {'Origin': 'null'},
+            {'Origin': 'http://127.0.0.1:9999'},
+            {'Sec-Fetch-Site': 'cross-site'},
+            {'Sec-Fetch-Site': 'same-site'},
+        ]:
+            with self.subTest(headers=headers):
+                status, body = self.request_without_socket(headers=headers)
+                self.assertEqual(status, 403)
+                self.assertNotIn(app.TOKEN.encode(), body)
+        self.assertEqual(self.request_without_socket(headers={
+            'Origin': 'http://127.0.0.1:8767', 'Sec-Fetch-Site': 'same-origin'})[0], 200)
+
+    def test_foreign_request_cannot_clear_existing_messages(self):
+        previous = dict(app.MESSAGES)
+        app.MESSAGES['request-boundary-fixture'] = {'id': 'request-boundary-fixture'}
+        try:
+            for headers in [{'Host': 'attacker.example:8767'}, {'Origin': 'https://attacker.example'}]:
+                status, _ = self.request_without_socket('POST', '/clear', {
+                    'X-Viewer-Token': app.TOKEN, **headers})
+                self.assertEqual(status, 403)
+                self.assertIn('request-boundary-fixture', app.MESSAGES)
+        finally:
+            app.MESSAGES.clear()
+            app.MESSAGES.update(previous)
+
+    def test_interrupted_import_preserves_existing_state(self):
+        message = EmailMessage()
+        message['Subject'] = 'Incomplete synthetic upload'
+        message.set_content('Keep existing messages unchanged.')
+        raw = message.as_bytes()
+        before = (dict(app.MESSAGES), dict(app.SOURCES))
+        status, body = self.request_without_socket('POST', '/import', {
+            'X-Viewer-Token': app.TOKEN, 'Content-Length': str(len(raw) + 20)}, raw)
+        self.assertEqual(status, 400)
+        self.assertIn(b'interrupted', body)
+        self.assertEqual((app.MESSAGES, app.SOURCES), before)
+
     def test_mime_decoding(self):
         message = EmailMessage()
         message['Subject'] = 'Résumé ☀'
