@@ -28,7 +28,7 @@ window.POSTBOX_DESKTOP={
 };
 document.addEventListener('DOMContentLoaded',()=>{
  $('folder').textContent='Open managed folder';$('pdfPreview').textContent='Open desktop print preview';
- document.querySelector('.bulk-note').textContent='Filter by dates, select results, or Shift-click checkboxes. Original-file changes work on files opened with the desktop Open controls. Session-only deletion keeps originals. Exported copies remain on disk.';
+ document.querySelector('.bulk-note').textContent='Filter by dates, select results, or Shift-click checkboxes. The desktop Open controls manage originals. Imported copies can reconnect to a chosen original folder before editing. Session-only deletion keeps originals. Exported copies remain on disk.';
  document.querySelector('.preview-note').textContent='Documents show text previews. PDF and media playback depend on the system webview and codecs. Save a file to open it in another application.';
  document.addEventListener('click',event=>{
   const link=event.target.closest('a');if(!link)return;

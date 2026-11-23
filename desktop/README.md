@@ -17,7 +17,7 @@ Closing the Postbox window stops its local mail engine. No launcher terminal nee
 
 Use **Open email files** or **Open managed folder** for EML, MSG, PST, MBOX and MBX. Search fields, inclusive date filters, grouping, range selection, attachment previews, email and attachment exports, PDF/print preview, Next, and deletion use the same interface and mail engine as the browser edition.
 
-Native save dialogs work on all three operating systems. Attachment exports preserve existing files and use year/month/email folders. **Import folder copy** and drag-and-drop import session copies; use the desktop Open controls when you want to edit originals. Reopening a file already managed in the session skips it.
+Native save dialogs work on all three operating systems. Attachment exports preserve existing files and use year/month/email folders. **Import folder copy** and drag-and-drop import session copies; the desktop Open controls manage originals immediately. If you later edit an imported copy, choose its original folder when asked; unchanged contents and a unique match are required. Reopening a file already managed in the session skips it.
 
 Deletion defaults to **This session only**. To edit originals, change the deletion mode and confirm. The app verifies source contents before editing, uses atomic replacements, and reports partial completion. There is no undo or automatic backup: keep your own backup before permanently deleting or changing an archive. PST originals are read-only; MSG attachment edits require an EML/MBOX export or a session-only change.
 

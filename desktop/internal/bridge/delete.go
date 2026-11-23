@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type change struct {
@@ -50,6 +51,16 @@ func (b *Bridge) delete(ctx context.Context, p map[string]json.RawMessage) (any,
 			return errors.New("Original changed since import. Reimport it before deleting")
 		}
 		return nil
+	}
+	if originals {
+		for _, c := range plan.Changes {
+			if !c.OriginalWritable {
+				return nil, errors.New("PST originals are read-only; MSG attachment edits require an EML/MBOX export or session-only deletion")
+			}
+		}
+		if err = b.reconnect(plan.Changes); err != nil {
+			return nil, err
+		}
 	}
 	// Preflight the entire batch; a missing or changed source must not partially delete it.
 	if originals {
@@ -110,4 +121,62 @@ func (b *Bridge) delete(ctx context.Context, p map[string]json.RawMessage) (any,
 		results = append(results, result)
 	}
 	return map[string]any{"results": results}, nil
+}
+
+// Reconnect copy imports only after the user selects their containing directory.
+// Require one unchanged match for each missing source before any filesystem edit.
+func (b *Bridge) reconnect(changes []change) error {
+	missing := map[string]change{}
+	for _, c := range changes {
+		if _, ok := b.sources[c.SourceID]; !ok {
+			missing[c.SourceID] = c
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	roots, err := b.Dialogs.Open(true)
+	if err != nil {
+		return err
+	}
+	if len(roots) == 0 {
+		return errors.New("Original folder selection cancelled. No files were changed")
+	}
+	matches := map[string][]string{}
+	err = filepath.WalkDir(roots[0], func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if regular(path) != nil {
+			return nil
+		}
+		for sid, c := range missing {
+			if entry.Name() != c.Filename {
+				continue
+			}
+			hash, err := fileDigest(path)
+			if err != nil {
+				return err
+			}
+			if hash == c.OldDigest {
+				matches[sid] = append(matches[sid], path)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	for sid, c := range missing {
+		if len(matches[sid]) != 1 {
+			return fmt.Errorf("Could not identify one unchanged original for %q. Choose its exact containing folder, or reimport if it changed. No files were changed", c.Filename)
+		}
+	}
+	for sid, paths := range matches {
+		b.sources[sid] = paths[0]
+	}
+	return nil
 }

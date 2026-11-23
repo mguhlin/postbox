@@ -129,7 +129,7 @@ jobs:
           path: desktop/build/native/native-result.json
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, browser]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -149,3 +149,40 @@ jobs:
           args=()
           if [[ "$RELEASE_TAG" == *-* ]]; then args+=(--prerelease); fi
           gh release create "$RELEASE_TAG" release/* --verify-tag "${args[@]}" --title "Postbox Desktop $RELEASE_TAG" --notes-file desktop/RELEASE.md
+  browser:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install pinned browser check tools
+        working-directory: app
+        run: npm ci --ignore-scripts
+      - name: Install browser test engines
+        working-directory: app
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Browser accessibility, lifecycle, network and PDF checks
+        working-directory: app
+        shell: bash
+        run: |
+          python3 app.py --no-open --port 8792 &
+          viewer_pid=$!
+          trap 'kill "$viewer_pid" 2>/dev/null || true' EXIT
+          python3 - <<'PY'
+          import time, urllib.request
+          for attempt in range(30):
+              try:
+                  urllib.request.urlopen('http://127.0.0.1:8792').close()
+                  break
+              except OSError:
+                  time.sleep(0.2)
+          else:
+              raise RuntimeError('Viewer did not start')
+          PY
+          npm run test:browser
+          node test_pdf_browser.cjs

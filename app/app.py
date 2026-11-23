@@ -369,7 +369,7 @@ class Handler(BaseHTTPRequestHandler):
             kind = 'text/javascript' if target.suffix in ('.js', '.mjs') else 'text/html' if target.suffix == '.html' else 'application/octet-stream'
             self.send(target.read_bytes(), kind)
             return
-        if path in ('/about.html', '/theme.css'):
+        if path in ('/about.html', '/privacy.html', '/theme.css'):
             name = path[1:]
             kind = 'text/html' if name.endswith('.html') else 'text/css'
             self.send((ROOT / name).read_bytes(), kind + '; charset=utf-8')

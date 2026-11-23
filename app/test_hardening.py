@@ -56,6 +56,12 @@ class HardeningTest(unittest.TestCase):
         self.assertEqual(self.request('/import', self.raw, {'X-Filename': 'bad.exe'})[0], 400)
         self.assertEqual((app.MESSAGES, app.SOURCES), before)
 
+    def test_css_network_references_removed_but_benign_formatting_survives(self):
+        cleaned = app.safe_html('<style>@import "https://example.invalid/css";p{color:red}</style><p style="background:u/**/rl(https://example.invalid/pixel)">Body</p><p style="color:red">Keep</p><img src="https://example.invalid/image">')
+        self.assertNotIn('example.invalid', cleaned)
+        self.assertIn('style="color:red"', cleaned)
+        self.assertIn('Remote or missing image blocked', cleaned)
+
     def test_clear_discards_all_server_copies_and_plans(self):
         app.create_plan({'action': 'messages', 'messageIds': [self.message['id']]})
         self.assertTrue(app.PLANS)

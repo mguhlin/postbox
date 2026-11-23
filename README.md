@@ -31,7 +31,7 @@ Extract the entire download. Windows desktop uses WebView2; its Microsoft offlin
 
 ## Protect originals and private records
 
-Deletion defaults to **This session only**, which leaves originals intact. Original-file changes require a separate mode choice and confirmation. The desktop Open controls manage local originals on all supported systems; the browser edition requires Chrome/Edge file access. Imported folder copies or dropped files can be browsed without write access. Browser copies can reconnect to an original folder with content checks; desktop copies should be reopened through the native Open controls before editing originals.
+Deletion defaults to **This session only**, which leaves originals intact. Original-file changes require a separate mode choice and confirmation. The desktop Open controls manage local originals on all supported systems; the browser edition requires Chrome/Edge file access. Imported folder copies or dropped files can be browsed without write access. Both editions can reconnect imported copies to a user-selected original folder, checking file contents and rejecting ambiguous matches before editing.
 
 Original-file deletion removes EML/MSG files or rewrites EML/MBOX archives. Attachment deletion changes its source email. PST originals cannot be edited; MSG attachment edits require a session copy or EML/MBOX export. Files are checked against their imported contents before writing. Desktop replacements are atomic. Failures report completed sources; reimport an affected source if a disk change completed before the session update failed. No undo or automatic backup is provided. Keep a separate backup before changing originals.
 
