@@ -143,7 +143,7 @@ def import_msg(raw):
 
 
 def pst_reader():
-    vendor = Path(__file__).parent / 'vendor' / ('windows' if sys.platform == 'win32' else 'linux')
+    vendor = Path(__file__).parent / 'vendor' / ('windows' if sys.platform == 'win32' else 'macos' if sys.platform == 'darwin' else 'linux')
     sys.path.insert(0, str(vendor))
     try:
         import pypff

@@ -1,0 +1,151 @@
+name: Go desktop apps
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths: ['app/**', 'desktop/**', '.github/workflows/desktop.yml']
+  pull_request:
+    paths: ['app/**', 'desktop/**', '.github/workflows/desktop.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x64
+          - os: windows-latest
+            platform: windows-x64
+          - os: macos-15
+            platform: macos-arm64
+          - os: macos-15-intel
+            platform: macos-x64
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: '1'
+      MACOSX_DEPLOYMENT_TARGET: '12.0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.4'
+          cache-dependency-path: desktop/go.sum
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Source regression checks
+        shell: bash
+        run: |
+          python -m unittest discover -s app -p 'test_*.py'
+          node app/test_search.cjs
+      - name: Go native file safety checks
+        working-directory: desktop
+        run: go test -race ./internal/...
+      - name: Linux system webview
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-0t64 libwebkit2gtk-4.1-0 xvfb dbus-x11
+      - name: Build Go application
+        working-directory: desktop
+        shell: bash
+        run: |
+          mkdir -p build
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            CGO_ENABLED=0 go build -trimpath -tags production -ldflags '-s -w -H windowsgui' -o build/Postbox.exe .
+          elif [[ "$RUNNER_OS" == "Linux" ]]; then
+            CGO_ENABLED=0 go build -trimpath -tags purego,gtk3,production -ldflags '-s -w' -o build/Postbox .
+          else
+            go build -trimpath -tags production -ldflags '-s -w' -o build/Postbox .
+          fi
+      - name: Build Mac PST reader prerequisites
+        if: runner.os == 'macOS'
+        run: python -m pip install setuptools==80.9.0 wheel==0.45.1
+      - name: Include Microsoft offline WebView2 runtime
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $path = 'desktop/build/MicrosoftEdgeWebView2RuntimeInstallerX64.exe'
+          Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $path
+          $signature = Get-AuthenticodeSignature $path
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') { throw 'Microsoft runtime publisher verification failed' }
+          @{ filename = (Split-Path $path -Leaf); sha256 = (Get-FileHash $path -Algorithm SHA256).Hash.ToLower(); version = (Get-Item $path).VersionInfo.FileVersion; publisher = $signature.SignerCertificate.Subject } | ConvertTo-Json | Set-Content -Encoding utf8 desktop/build/webview2-runtime.json
+      - name: Collect Go component licenses
+        working-directory: desktop
+        run: python scripts/licenses.py
+      - name: Package offline resources and verify bundled PST reader
+        shell: bash
+        run: |
+          binary=desktop/build/Postbox
+          if [[ "$RUNNER_OS" == "Windows" ]]; then binary=desktop/build/Postbox.exe; fi
+          python desktop/scripts/package.py --platform '${{ matrix.platform }}' --binary "$binary"
+      - name: Ad hoc sign Mac app
+        if: runner.os == 'macOS'
+        shell: bash
+        run: codesign --force --deep --sign - desktop/build/Postbox-Desktop-${{ matrix.platform }}/Postbox.app && codesign --verify --deep --strict desktop/build/Postbox-Desktop-${{ matrix.platform }}/Postbox.app
+      - name: Linux native smoke with networking disabled
+        if: runner.os == 'Linux'
+        working-directory: desktop
+        env:
+          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+        shell: bash
+        run: |
+          mkdir -p build/native
+          sudo -E unshare --net -- bash -c 'ip link set lo up; xvfb-run -a dbus-run-session -- timeout 120 build/Postbox-Desktop-linux-x64/Postbox --smoke-test "$PWD/build/native"'
+          sudo chown -R "$(id -u):$(id -g)" build/native
+      - name: Windows native smoke
+        if: runner.os == 'Windows'
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          $app = Start-Process -FilePath './build/Postbox-Desktop-windows-x64/Postbox.exe' -ArgumentList '--smoke-test', "$pwd/build/native" -PassThru
+          if (-not $app.WaitForExit(120000)) { $app.Kill(); throw 'Native smoke timed out' }
+          if ($app.ExitCode -ne 0) { throw "Native smoke failed ($($app.ExitCode))" }
+      - name: Mac native smoke
+        if: runner.os == 'macOS'
+        working-directory: desktop
+        shell: bash
+        run: ./build/Postbox-Desktop-${{ matrix.platform }}/Postbox.app/Contents/MacOS/Postbox --smoke-test "$PWD/build/native"
+      - name: Verify native results and exports
+        if: always()
+        shell: bash
+        run: python desktop/scripts/verify_native.py desktop/build/native
+      - name: Archive and checksum verified application
+        shell: bash
+        run: python desktop/scripts/package.py --platform '${{ matrix.platform }}' --archive-only desktop/build/Postbox-Desktop-${{ matrix.platform }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: desktop/build/release/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-check-${{ matrix.platform }}
+          path: desktop/build/native/native-result.json
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: release
+          merge-multiple: true
+      - name: Publish native desktop downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          args=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then args+=(--prerelease); fi
+          gh release create "$RELEASE_TAG" release/* --verify-tag "${args[@]}" --title "Postbox Desktop $RELEASE_TAG" --notes-file desktop/RELEASE.md

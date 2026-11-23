@@ -1,5 +1,6 @@
 'use strict';
-let messages = [], selected = null, busy = false, lastChecked = null, previewRequest = 0;
+if(typeof document!=='undefined')window.VIEWER_TOKEN=document.querySelector('meta[name=viewer-token]').content;
+let messages = [], selected = null, busy = false, lastChecked = null, previewRequest = 0, visibleLimit = 200;
 const selectedMessages = new Set(), selectedAttachments = new Set(), sourceHandles = new Map(), expanded = new Map();
 const $ = id => document.getElementById(id);
 const url = (id, part) => `/${window.VIEWER_TOKEN}/${id}/${part}`;
@@ -44,6 +45,8 @@ function nextAfterDeletion(previousIds,deletedId,remaining) {
 function resetReader() {
   selected = null; $('reader').hidden = true; $('empty').hidden = false;
   $('html').removeAttribute('src'); $('attachments').replaceChildren();
+  for(const id of ['subject','meta','body','readerStatus'])$(id).replaceChildren();
+  $('original').removeAttribute('href');
 }
 function updateSelectionCount() {
   $('selectionCount').textContent = `${selectedMessages.size} emails · ${selectedAttachments.size} attachments selected`;
@@ -87,7 +90,7 @@ function render() {
     check.onchange=()=>{members.forEach(m=>check.checked?selectedMessages.add(m.id):selectedMessages.delete(m.id));render()};
     summary.append(label);detail.append(summary);parent.append(detail);groups.set(key,detail);return detail;
   }
-  for (const m of filtered) {
+  for (const m of filtered.slice(0,visibleLimit)) {
     let parent=$('list');const year=m.dateKey?m.dateKey.slice(0,4):'Undated', month=m.dateKey?m.dateKey.slice(0,7):'Undated';
     if ($('groupBy').value!=='none') {
       parent=group(parent,year,year,years.get(year));
@@ -111,13 +114,14 @@ function render() {
     }
     button.onclick=()=>show(m);row.append(check,button);parent.append(row);
   }
+  if(filtered.length>visibleLimit){const more=document.createElement('button');more.textContent=`Show more messages (${visibleLimit} of ${filtered.length} shown)`;more.onclick=()=>{visibleLimit+=200;render()};$('list').append(more)}
   updateSelectionCount();
 }
 
 function setView(html) {
   $('html').hidden=!html;$('body').hidden=html;
   $('htmlTab').setAttribute('aria-pressed',String(html));$('textTab').setAttribute('aria-pressed',String(!html));
-  if(html) $('html').src=url(selected,'html');
+  if(html) $('html').src=url(selected,'html');else $('html').removeAttribute('src');
 }
 function renderAttachments(m) {
   $('attachments').replaceChildren();
@@ -174,6 +178,8 @@ async function loadFiles(files) {
   } finally {setBusy(false);$('files').value='';$('folders').value=''}
 }
 async function openFiles() {
+  if(busy)return;
+  if(window.POSTBOX_DESKTOP)return window.POSTBOX_DESKTOP.open(false);
   if(!window.showOpenFilePicker){$('files').click();return}
   try {
     const handles=await window.showOpenFilePicker({multiple:true,types:[{description:'Email and Outlook exports',accept:{'application/octet-stream':['.eml','.mbox','.mbx','.msg','.pst']}}]});
@@ -185,6 +191,8 @@ async function openFiles() {
   }catch(e){if(e.name!=='AbortError')setStatus(e.message)}finally{setBusy(false)}
 }
 async function openFolder() {
+  if(busy)return;
+  if(window.POSTBOX_DESKTOP)return window.POSTBOX_DESKTOP.open(true);
   if(!window.showDirectoryPicker){$('folders').click();return}
   try {
     const folder=await window.showDirectoryPicker({mode:'readwrite'});setBusy(true);let count=0,failed=0;const errors=[];
@@ -245,6 +253,7 @@ async function writeFile(handle,data) {
   try{await writer.write(data);await writer.close()}catch(e){try{await writer.abort()}catch(ignore){}throw e}
 }
 async function exportAttachments(allFromMessages) {
+  if(window.POSTBOX_DESKTOP)return window.POSTBOX_DESKTOP.exportAttachments(allFromMessages);
   if(busy)return;const attachments=attachmentSelection(allFromMessages);
   const count=Object.values(attachments).reduce((sum,list)=>sum+list.length,0);
   if(!count){setStatus('No attachments in this selection.');return}
@@ -282,6 +291,7 @@ function openPdfOptions(current = false) {
   $('pdfDialog').showModal();
 }
 async function previewPdf() {
+  if(window.POSTBOX_DESKTOP)return window.POSTBOX_DESKTOP.print();
   // Open synchronously from the click so browsers allow the preview tab.
   const preview = window.open('about:blank','_blank');
   if(!preview){setStatus('Allow pop-ups for Postbox, then open the PDF preview again.');return;}
@@ -302,6 +312,7 @@ async function previewPdf() {
 }
 
 async function exportEmails(format) {
+  if(window.POSTBOX_DESKTOP)return window.POSTBOX_DESKTOP.exportEmails(format);
   if(busy||!selectedMessages.size)return;setBusy(true);
   try {
     const response=await api('/export-emails',{messageIds:[...selectedMessages],format});
@@ -366,6 +377,11 @@ async function deleteSelected(action, messageIds=null) {
   let completed=0,committed=0,resultText='',failed=false;
   setBusy(true);setReaderStatus('Preparing deletion…');
   try {
+    if(window.POSTBOX_DESKTOP){
+      const result=await window.POSTBOX_DESKTOP.delete({action,messageIds:ids,attachments,originals});
+      for(const update of result.results){const old=new Set(update.removedIds);messages=messages.filter(m=>!old.has(m.id));messages.push(...update.messages);committed++}
+      if(result.error)throw Error(result.error);
+    }else{
     const plan=await (await api('/plan',{action,messageIds:ids,attachments})).json();
     if(originals&&plan.changes.some(change=>change.originalWritable===false))throw Error('Outlook PST archives are read-only, and MSG attachments cannot be rewritten in place. Explicitly choose "This session only" to remove imported items, or export emails as EML/MBOX for editing. No original files were changed.');
     if(originals)await connectOriginals(plan.changes,action);
@@ -391,6 +407,7 @@ async function deleteSelected(action, messageIds=null) {
       const old=new Set(result.removedIds);messages=messages.filter(m=>!old.has(m.id));messages.push(...result.messages);
       if(!originals||change.delete)sourceHandles.delete(change.sourceId);
     }
+    }
     resultText=currentMessage?`Deleted "${currentMessage.subject}" and its embedded attachments${originals?' from the original file':' from this session'}.`:`Deletion complete for ${committed} source file(s)${originals?' on disk':' in this session'}.`;
   }catch(e) {
     failed=e.name!=='AbortError';
@@ -414,7 +431,7 @@ async function deleteSelected(action, messageIds=null) {
 function init() {
   $('open').onclick=openFiles;$('folder').onclick=openFolder;$('uploadFolder').onclick=()=>$('folders').click();
   $('files').onchange=e=>loadFiles(e.target.files);$('folders').onchange=e=>loadFiles(e.target.files);
-  for(const id of ['search','dateFrom','dateTo','groupBy'])$(id).addEventListener('input',()=>{lastChecked=null;render()});
+  for(const id of ['search','dateFrom','dateTo','groupBy'])$(id).addEventListener('input',()=>{lastChecked=null;visibleLimit=200;render()});
   $('resetFilters').onclick=()=>{$('search').value='';$('dateFrom').value='';$('dateTo').value='';render()};
   $('selectVisible').onclick=()=>{filteredMessages().forEach(m=>selectedMessages.add(m.id));render()};
   $('deselect').onclick=()=>{selectedMessages.clear();selectedAttachments.clear();render();const m=messages.find(m=>m.id===selected);if(m)renderAttachments(m)};
@@ -440,12 +457,16 @@ function init() {
   $('previewClose').onclick=()=>$('previewDialog').close();$('previewDialog').addEventListener('close',()=>{previewRequest++;$('previewContent').replaceChildren()});
   $('clear').onclick=async()=>{
     if(busy)return;setBusy(true);
-    try{await api('/clear',{});messages=[];selectedMessages.clear();selectedAttachments.clear();sourceHandles.clear();expanded.clear();resetReader();render();setStatus('Session cleared. Files on disk were kept.')}catch(e){setStatus(e.message)}finally{setBusy(false)}
+    try{await api('/clear',{});messages=[];selectedMessages.clear();selectedAttachments.clear();sourceHandles.clear();expanded.clear();lastChecked=null;pdfMessageIds=[];previewRequest++;
+      for(const id of ['previewDialog','pdfDialog'])if($(id).open)$(id).close();
+      $('previewContent').replaceChildren();$('previewTitle').textContent='Attachment preview';$('previewDownload').removeAttribute('href');$('pdfCount').textContent='';
+      $('search').value='';$('dateFrom').value='';$('dateTo').value='';$('files').value='';$('folders').value='';$('importReport').textContent='';$('importReport').hidden=true;
+      resetReader();render();setStatus('Session cleared. Files on disk were kept.')}catch(e){setStatus(e.message)}finally{setBusy(false)}
   };
   document.addEventListener('dragover',e=>{e.preventDefault();document.body.classList.add('drag')});
   document.addEventListener('dragleave',e=>{if(!e.relatedTarget)document.body.classList.remove('drag')});
   document.addEventListener('drop',e=>{e.preventDefault();document.body.classList.remove('drag');loadFiles(e.dataTransfer.files)});
-  if(!window.showDirectoryPicker)$('folder').textContent='Import folder';
+  if(!window.showDirectoryPicker&&!window.POSTBOX_DESKTOP)$('folder').textContent='Import folder';
   render();
 }
 if(typeof document!=='undefined')init();

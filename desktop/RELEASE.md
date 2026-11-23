@@ -1,0 +1,7 @@
+Postbox now runs in a Go desktop window on Windows x64, Linux x64, and Apple Silicon/Intel macOS. Its bundled shared mail engine preserves EML, MSG, PST, MBOX/MBX import, search, grouping, selection, previews, native file saves, attachment folders, EML/MBOX exports, PDF/print preview, and confirmed original/session deletion. No separate browser, Python setup, account, or internet connection is needed at runtime.
+
+Extract the complete download. Windows includes Microsoft's offline WebView2 installer if that system runtime is missing. Linux uses system GTK3/WebKitGTK 4.1; install those prerequisites before offline use. Mac apps are ad hoc signed and are not notarized by Apple. Windows executables are unsigned. See START HERE.md for platform instructions and limits.
+
+Browser improvements include stricter input and export validation, complete reader cleanup on Clear session, session-only deletion by default, MIME/session limits, a working local stylesheet policy, reflow and focus improvements, and bounded message-list rendering. The privacy statement and VCC review distinguish tested controls from unverified accessibility, institutional approval, and physical-device use.
+
+Each platform build runs synthetic native-window checks and verifies real export bytes before its download is published. Native file dialogs use test destinations during automation; physical file-picker and system print-dialog testing remain separate. Linux additionally runs with networking disabled. SHA-256 files accompany the archives.

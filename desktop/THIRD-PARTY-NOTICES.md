@@ -1,0 +1,11 @@
+# Postbox Desktop components
+
+Postbox Desktop's window, native file controls and application integration are written in Go. The shared mail engine is Python, bundled in each distribution; a Python installation is not needed.
+
+- Wails v3.1.0, MIT: [project](https://github.com/wailsapp/wails/tree/v3.1.0). License included in `licenses/Wails-LICENSE`. Go dependency versions and checksums are in `go.mod` and `go.sum`; the source distribution includes their license notices.
+- CPython: included runtime license files. macOS/Linux standalone builds are from [Astral python-build-standalone](https://github.com/astral-sh/python-build-standalone); Windows uses the official Python embeddable distribution.
+- libpff Python bindings: LGPL-3.0-or-later; supporting library components retain their original terms. License notices, corresponding source, and provenance are in `resources/app/licenses/` (inside `Postbox.app/Contents/Resources/app/licenses/` on macOS).
+- olefile: bundled `resources/app/OLEFILE-LICENSE.txt`.
+- Windows WebView2 offline installer: Microsoft software, distributed under Microsoft's runtime terms. Publisher signature is verified during packaging; `webview2-runtime.json` records its version and checksum. The installer runs only if the user needs to install that system runtime.
+
+System WebKit/GTK or Apple's WKWebView are used on Linux/macOS. They are not fetched by Postbox. Public example addresses in checks are fictional.

@@ -33,6 +33,8 @@ STATE_LOCK = threading.RLock()
 TOKEN = secrets.token_urlsafe(24)
 MAX_BYTES = 100 * 1024 * 1024
 MAX_PST_BYTES = 2 * 1024 * 1024 * 1024
+MAX_MESSAGES = 25000
+MAX_SESSION_BYTES = 512 * 1024 * 1024
 
 
 class SafeEmailHTML(HTMLParser):
@@ -147,12 +149,14 @@ def parse_message(raw, filename):
     msg = BytesParser(policy=policy.default).parsebytes(raw)
     attachments = []
     plain, html = [], []
-    def leaves(part):
+    def leaves(part, depth=0):
+        if depth > 40:
+            raise ValueError("Email MIME nesting exceeds the supported limit.")
         if part.get_content_type() == 'message/rfc822':
             yield part
         elif part.is_multipart():
             for child in part.iter_parts():
-                yield from leaves(child)
+                yield from leaves(child, depth + 1)
         else:
             yield part
 
@@ -195,14 +199,44 @@ def public_message(message):
     return result
 
 
+def validate_selection(payload, attachments=False):
+    if not isinstance(payload, dict):
+        raise ValueError('Expected a request object.')
+    if attachments:
+        selection = payload.get('attachments', {})
+        if not isinstance(selection, dict) or not selection:
+            raise ValueError('Select existing attachments first.')
+        for mid, indices in selection.items():
+            if mid not in MESSAGES or not isinstance(indices, list) or not indices:
+                raise ValueError('Invalid attachment selection.')
+            if any(type(i) is not int or not 0 <= i < len(MESSAGES[mid]['attachments']) for i in indices):
+                raise ValueError('Invalid attachment selection.')
+            if len(set(indices)) != len(indices):
+                raise ValueError('Duplicate attachment selection.')
+        return selection
+    ids = payload.get('messageIds', [])
+    if not isinstance(ids, list) or not ids or any(not isinstance(mid, str) or mid not in MESSAGES for mid in ids):
+        raise ValueError('Select existing emails first.')
+    return list(dict.fromkeys(ids))
+
+
+def check_session_capacity(imported, raw):
+    if len(MESSAGES) + len(imported) > MAX_MESSAGES:
+        raise ValueError('Session limit is 25,000 messages. Clear the session or split this archive.')
+    def size(message):
+        return len(message['raw']) + sum(len(a['data']) for a in message['attachments']) + sum(
+            len(message[k].encode('utf-8')) for k in ('plain', 'html', 'bodyText'))
+    used = sum(len(source['raw']) for source in SOURCES.values()) + sum(size(m) for m in MESSAGES.values())
+    if used + len(raw) + sum(size(m) for m in imported) > MAX_SESSION_BYTES:
+        raise ValueError('Session data limit is 512 MiB. Clear the session or split this archive.')
+
+
 def create_plan(payload):
     action = payload.get('action')
     if action not in ('messages', 'attachments'):
         raise ValueError('Choose messages or attachments to delete.')
-    ids = set(payload.get('messageIds', []))
-    attachment_ids = payload.get('attachments', {})
-    if action == 'attachments':
-        ids = set(attachment_ids)
+    attachment_ids = validate_selection(payload, True) if action == 'attachments' else {}
+    ids = set(attachment_ids) if action == 'attachments' else set(validate_selection(payload))
     if not ids or not ids.issubset(MESSAGES):
         raise ValueError('Select existing messages first.')
     source_ids = {MESSAGES[mid]['sourceId'] for mid in ids}
@@ -267,6 +301,10 @@ class Handler(BaseHTTPRequestHandler):
             return False
         # A loopback bind alone does not establish the browser's origin. Reject
         # rebinding/foreign hostnames before serving the page containing TOKEN.
+        desktop_key = getattr(self.server, 'desktop_key', None)
+        if desktop_key and self.headers.get('X-Postbox-Desktop') != desktop_key:
+            self.send('{"error":"Use the Postbox desktop window."}', status=403)
+            return False
         port = self.server.server_port
         authorities = {f'127.0.0.1:{port}', f'localhost:{port}'}
         if port == 80:
@@ -290,6 +328,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Length', str(len(data)))
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('Referrer-Policy', 'no-referrer')
+        self.send_header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
         if download:
             from urllib.parse import quote
             safe = download.replace('\\', '/').split('/')[-1] or 'attachment'
@@ -300,6 +340,10 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
+        with STATE_LOCK:
+            self.handle_get()
+
+    def handle_get(self):
         path = urlparse(self.path).path
         if path in ('/about.html', '/theme.css'):
             name = path[1:]
@@ -313,7 +357,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send((ROOT / path[1:]).read_bytes(), 'image/png')
             return
         if path == '/':
-            self.send((ROOT / 'index.html').read_text(encoding='utf-8').replace('__TOKEN__', TOKEN), 'text/html; charset=utf-8', extra={'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; frame-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"})
+            self.send((ROOT / 'index.html').read_text(encoding='utf-8').replace('__TOKEN__', TOKEN), 'text/html; charset=utf-8', extra={'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; media-src 'self'"})
             return
         pieces = path.strip('/').split('/')
         if len(pieces) >= 3 and pieces[0] == TOKEN and pieces[1] in MESSAGES:
@@ -355,6 +399,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get('X-Viewer-Token') != TOKEN:
             self.send('{}', status=403)
             return
+        if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) != 1:
+            self.send('{"error":"A single Content-Length is required."}', status=400)
+            return
         if self.path == '/clear':
             MESSAGES.clear()
             SOURCES.clear()
@@ -366,11 +413,14 @@ class Handler(BaseHTTPRequestHandler):
                 length = int(self.headers.get('Content-Length', '0'))
                 if not 0 < length < 4 * 1024 * 1024:
                     raise ValueError('Invalid request size.')
-                payload = json.loads(self.rfile.read(length))
+                body = self.rfile.read(length)
+                if len(body) != length:
+                    raise ValueError('The request was interrupted.')
+                payload = json.loads(body)
+                if not isinstance(payload, dict):
+                    raise ValueError('Expected a request object.')
                 if self.path == '/export-pdf':
-                    ids = payload.get('messageIds', [])
-                    if not isinstance(ids, list) or not ids or any(not isinstance(mid, str) or mid not in MESSAGES for mid in ids):
-                        raise ValueError('Select existing emails to export.')
+                    ids = validate_selection(payload)
                     if not isinstance(payload.get('clean', True), bool):
                         raise ValueError('Invalid clean layout option.')
                     self.send(print_document([MESSAGES[mid] for mid in dict.fromkeys(ids)],
@@ -381,9 +431,9 @@ class Handler(BaseHTTPRequestHandler):
                 elif self.path == '/commit':
                     self.send(json.dumps(commit_plan(payload)))
                 elif self.path == '/export-emails':
-                    ids = payload.get('messageIds', [])
-                    if not ids or any(mid not in MESSAGES for mid in ids):
-                        raise ValueError('Select existing emails to export.')
+                    ids = validate_selection(payload)
+                    if payload.get('format') not in ('eml', 'mbox'):
+                        raise ValueError('Choose EML ZIP or MBOX export.')
                     if payload.get('format') == 'mbox':
                         raw = rebuild_source(dict(filename='export.pst', raw=b''), [MESSAGES[mid] for mid in ids])
                         self.send(raw, 'application/mbox', download='Postbox-emails.mbox')
@@ -398,7 +448,7 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     buffer = io.BytesIO()
                     with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as archive:
-                        for mid, indices in payload.get('attachments', {}).items():
+                        for mid, indices in validate_selection(payload, True).items():
                             message = MESSAGES[mid]
                             for index in indices:
                                 if not isinstance(index, int) or not 0 <= index < len(message['attachments']):
@@ -415,6 +465,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             from urllib.parse import unquote
             filename = unquote(self.headers.get('X-Filename', 'message.eml'))
+            filename = filename.replace('\\', '/').split('/')[-1]
+            if not filename.lower().endswith(('.eml', '.msg', '.pst', '.mbox', '.mbx')):
+                raise ValueError('Choose EML, MSG, PST, MBOX, or MBX files.')
             is_pst = filename.lower().endswith('.pst')
             length = int(self.headers.get('Content-Length', '0'))
             if not 0 < length <= (MAX_PST_BYTES if is_pst else MAX_BYTES):
@@ -440,6 +493,8 @@ class Handler(BaseHTTPRequestHandler):
                 if len(raw) != length:
                     raise ValueError('The upload was interrupted. No messages were imported.')
                 imported = parse_export(raw, filename)
+            check_session_capacity(imported, raw)
+            PLANS.clear()
             sid = secrets.token_hex(12)
             SOURCES[sid] = dict(filename=filename, raw=raw, messageIds=[m['id'] for m in imported])
             results = []
@@ -454,15 +509,30 @@ class Handler(BaseHTTPRequestHandler):
             self.send('{"error":"This file could not be read. Use a supported email export."}', status=400)
 
 
+class LocalServer(ThreadingHTTPServer):
+    def get_request(self):
+        connection, address = super().get_request()
+        connection.settimeout(300)
+        return connection, address
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', type=int, default=0)
     parser.add_argument('--no-open', action='store_true')
+    parser.add_argument('--desktop', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
-    server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
+    server = LocalServer(('127.0.0.1', args.port), Handler)
+    server.timeout = 1
     url = f'http://127.0.0.1:{server.server_port}'
-    print(f'Open {url} — press Ctrl+C to close.', flush=True)
-    if not args.no_open:
+    if args.desktop:
+        server.desktop_key = sys.stdin.readline().strip()
+        if len(server.desktop_key) < 32:
+            raise ValueError('Desktop authentication is required.')
+        print(json.dumps(dict(url=url, token=TOKEN)), flush=True)
+    if not args.desktop:
+        print(f'Open {url} — press Ctrl+C to close.', flush=True)
+    if not args.no_open and not args.desktop:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:
         server.serve_forever()

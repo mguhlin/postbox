@@ -69,12 +69,12 @@ class OutlookTest(unittest.TestCase):
         self.assertEqual(app.SOURCES['pst']['raw'], b'')
 
     def test_msg_attachment_edit_guard_but_whole_file_delete_allowed(self):
-        raw = outlook.build_email(subject='MSG', plain='body').as_bytes()
+        raw = outlook.build_email(subject='MSG', plain='body', attachments=[dict(name='test.txt', data=b'test')]).as_bytes()
         message = app.parse_message(raw, 'converted.eml')
         message.update(sourceId='msg', sourceIndex=0, sourceFormat='msg')
         app.MESSAGES[message['id']] = message
         app.SOURCES['msg'] = dict(filename='saved.msg', raw=b'original MSG', messageIds=[message['id']])
-        plan = app.create_plan(dict(action='attachments', attachments={message['id']: []}))
+        plan = app.create_plan(dict(action='attachments', attachments={message['id']: [0]}))
         self.assertFalse(plan['changes'][0]['originalWritable'])
         plan = app.create_plan(dict(action='messages', messageIds=[message['id']]))
         self.assertTrue(plan['changes'][0]['originalWritable'])
