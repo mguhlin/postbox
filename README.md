@@ -39,7 +39,7 @@ Original-file deletion removes EML/MSG files or rewrites EML/MBOX archives. Atta
 
 ## Limits
 
-PST imports: 2 GB per file, streamed through a temporary local file by the desktop Open controls and browser service. Other files: 100 MB. Desktop drag-and-drop/copy requests are limited to 100 MB; use native Open for larger PSTs. A session holds at most 25,000 messages and 512 MiB of counted source, message, body and attachment data. Peak parser/process memory can exceed that count. MBOX/PST temporary files are removed after normal parsing; an abrupt process/OS failure can leave temporary artifacts.
+PST imports: 2 GB per file, streamed through a temporary local file by the desktop Open controls, native file drops, and browser service. Other files: 100 MB. Desktop folder-copy requests are limited to 100 MB; use native Open or an OS file drop for larger PSTs. A session holds at most 25,000 messages and 512 MiB of counted source, message, body and attachment data. Peak parser/process memory can exceed that count. MBOX/PST temporary files are removed after normal parsing; an abrupt process/OS failure can leave temporary artifacts.
 
 Search indexes body text and attachment names, not attached-file contents. CID inline images are offered as attachments. OST/OLM, contacts and calendar-only records are unsupported. Encrypted messages are not decrypted and signatures are not verified. Some PDF fonts/image formats, document variants and media codecs need another compatible viewer. PDF exports are not certified accessible documents.
 
