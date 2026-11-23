@@ -221,7 +221,14 @@ async function previewAttachment(m,a,index) {
     const tag={image:'img',video:'video',audio:'audio',pdf:'iframe'}[a.preview];if(!tag)return;
     const element=document.createElement(tag);element.src=a.preview==='pdf'?'/pdf-preview.html?source='+encodeURIComponent(source):source;
     if(tag==='img')element.alt=a.name;
-    if(tag==='iframe'){element.title=a.name;element.referrerPolicy='no-referrer'}
+    if(tag==='iframe'){
+      element.title=a.name;element.referrerPolicy='no-referrer';
+      if(a.preview==='pdf'){
+        const listener=event=>{if(event.source!==element.contentWindow||event.data?.type!=='postbox-pdf-preview'||typeof event.data.ready!=='boolean')return;element.dataset.pdfReady=String(event.data.ready);element.dataset.pdfError=String(event.data.error||'').slice(0,500)};
+        window.addEventListener('message',listener);element.addEventListener('load',()=>{if(!element.isConnected)window.removeEventListener('message',listener)});
+        const closed=()=>{if($('previewDialog').open)return;window.removeEventListener('message',listener);$('previewDialog').removeEventListener('close',closed)};$('previewDialog').addEventListener('close',closed);
+      }
+    }
     if(tag==='audio'||tag==='video'){element.controls=true;element.preload='metadata'}
     element.onerror=()=>{container.textContent='Your browser could not preview this format. Download the original to open it.'};container.append(element);
   }
@@ -454,7 +461,7 @@ function init() {
   $('pdfPreview').onclick=previewPdf;$('pdfCancel').onclick=()=>$('pdfDialog').close();
   $('exportEml').onclick=()=>exportEmails('eml');$('exportMbox').onclick=()=>exportEmails('mbox');
   $('textTab').onclick=()=>setView(false);$('htmlTab').onclick=()=>setView(true);
-  $('previewClose').onclick=()=>$('previewDialog').close();$('previewDialog').addEventListener('close',()=>{previewRequest++;$('previewContent').replaceChildren()});
+  $('previewClose').onclick=()=>$('previewDialog').close();$('previewDialog').addEventListener('close',()=>{if($('previewDialog').open)return;previewRequest++;$('previewContent').replaceChildren()});
   $('clear').onclick=async()=>{
     if(busy)return;setBusy(true);
     try{await api('/clear',{});messages=[];selectedMessages.clear();selectedAttachments.clear();sourceHandles.clear();expanded.clear();lastChecked=null;pdfMessageIds=[];previewRequest++;

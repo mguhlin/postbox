@@ -11,9 +11,10 @@
   await exportEmails('eml');await exportEmails('mbox');checks.push('EML ZIP and MBOX exports');
   await exportAttachments(true);checks.push('Organized folder export');
   await previewAttachment(m,m.attachments[0],0);await wait(()=>document.querySelector('#previewContent pre'));check(document.querySelector('#previewContent').textContent.includes('Attachment content'),'Text attachment preview');$('previewDialog').close();
+  await previewAttachment(m,m.attachments[1],1);await wait(()=>document.querySelector('#previewContent iframe')?.dataset.pdfReady);const pdfFrame=document.querySelector('#previewContent iframe');check(pdfFrame.dataset.pdfReady==='true','Bundled PDF attachment renderer: '+(pdfFrame.dataset.pdfError||''));$('previewDialog').close();
   openPdfOptions(true);await previewPdf();checks.push('Native print preview creation');
   const denied=await fetch('/desktop/save',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});check(denied.status===403,'Native bridge rejects missing token');
-  const result=await window.POSTBOX_DESKTOP.delete({action:'attachments',attachments:{[m.id]:[0]},messageIds:[],originals:true});check(result.results.length===1&&!result.error,'Atomic native original-file attachment removal');
+  const result=await window.POSTBOX_DESKTOP.delete({action:'attachments',attachments:{[m.id]:[0,1]},messageIds:[],originals:true});check(result.results.length===1&&!result.error,'Atomic native original-file attachment removal');
   await $('clear').onclick();check(!messages.length&&!$('body').textContent&&!$('meta').textContent&&!$('subject').textContent,'Clear removes server records and reader DOM');
   await openFiles();check(messages.length===1&&messages[0].attachments.length===0,'Original edit survives clear and reimport');
   const removed=await window.POSTBOX_DESKTOP.delete({action:'messages',messageIds:[messages[0].id],attachments:{},originals:true});check(removed.results.length===1&&!removed.error,'Native original-file deletion');

@@ -43,6 +43,7 @@ type Bridge struct {
 	sources   map[string]string
 	messages  map[string]Message
 	views     map[string]string
+	nextView  int
 	DesktopJS []byte
 	PrintJS   []byte
 	Smoke     func(json.RawMessage) error
@@ -332,19 +333,9 @@ func (b *Bridge) action(ctx context.Context, path string, p map[string]json.RawM
 			if len(m.Date) == 10 {
 				year, month = m.Date[:4], m.Date[5:7]
 			}
-			dir := filepath.Join(root, safeName(year), safeName(month), safeName(m.Date+"_"+m.Subject+"_"+mid))
-			if err = os.MkdirAll(dir, 0700); err != nil {
-				return map[string]int{"saved": saved}, err
-			}
-			// Never follow a pre-existing symlink out of the selected export directory.
-			rel, _ := filepath.Rel(root, dir)
-			cur := root
-			for _, part := range strings.Split(rel, string(filepath.Separator)) {
-				cur = filepath.Join(cur, part)
-				info, e := os.Lstat(cur)
-				if e != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-					return nil, errors.New("Export folder contains a symbolic link or invalid directory")
-				}
+			dir, err := exportDirectory(root, year, month, m.Date+"_"+m.Subject+"_"+mid)
+			if err != nil {
+				return nil, fmt.Errorf("Export stopped after %d attachments: %w", saved, err)
 			}
 			for _, i := range indices {
 				res, err := b.Engine.Request(ctx, "GET", "/"+b.Engine.Token+"/"+mid+"/"+strconv.Itoa(i), nil, nil)
@@ -380,7 +371,8 @@ func (b *Bridge) action(ctx context.Context, path string, p map[string]json.RawM
 			return nil, err
 		}
 		html = string(raw)
-		id := strconv.Itoa(len(b.views) + 1)
+		b.nextView++
+		id := strconv.Itoa(b.nextView)
 		html = strings.Replace(html, "default-src 'none';", "default-src 'none'; script-src 'self'; connect-src 'self';", 1)
 		html = strings.Replace(html, "<title>", `<meta name="viewer-token" content="`+b.Engine.Token+`"><meta name="print-id" content="`+id+`"><script src="/desktop-print.js" defer></script><title>`, 1)
 		b.views[id] = html
@@ -458,3 +450,5 @@ func (b *Bridge) importFile(ctx context.Context, path string) (json.RawMessage, 
 	raw, err := io.ReadAll(res.Body)
 	return json.RawMessage(raw), err
 }
+
+func (b *Bridge) DropPreview(id string) { b.mu.Lock(); delete(b.views, id); b.mu.Unlock() }

@@ -1,4 +1,8 @@
-# Postbox — portable offline email viewer
+# Postbox — browser edition
+
+For the native Go application on Windows, macOS and Linux, see the [desktop guide](../desktop/README.md). This guide describes the local browser edition, which uses the same mail engine and interface.
+
+[Privacy statement](https://mguhlin.github.io/postbox/privacy.html) · [Four-guide VCC review](https://github.com/mguhlin/postbox/blob/main/docs/VCC-REVIEW.md)
 
 Ready-to-run packages include Python. Extract the entire package, then launch:
 
@@ -13,9 +17,9 @@ Run `python3 app.py` on Linux/macOS or `py app.py` on Windows. Your browser open
 
 Open multiple `.eml` exports, select a folder (including subfolders), or drop files into the window. Search subject, sender, recipients, plain text, HTML body text, and attachment names. Import `.mbox` / `.mbx` archives alongside `.eml` messages. Select a message to read it. HTML opens automatically when available; Plain text is always available as a fallback. Save individual attachments or download the original message.
 
-The app listens only on your computer's loopback address. Imported messages are held in memory. Original files change only when you explicitly select deletion from original files and confirm. MBOX imports briefly use a temporary local file, which is deleted immediately after parsing. Nothing is uploaded to an external service. Reloading the page resets the visible list; use Clear session or stop the app to discard imported data from server memory. Downloads are saved by your browser and remain after clearing a session.
+The app listens only on your computer's loopback address. Imported messages are held in memory. Original files change only when you explicitly select deletion from original files and confirm. MBOX imports briefly use a temporary local file, which is deleted immediately after parsing. Nothing is uploaded to an external service. Reloading the page resets the visible list but does not clear the running service; use Clear session or stop the app to discard imported data from server memory. Downloads are saved by your browser and remain after clearing a session.
 
-HTML scripts, links, remote images, and external styles are blocked. CID inline images are offered as downloadable attachments rather than embedded in HTML. Encrypted messages are not decrypted, signatures are not verified, and Outlook `.msg` messages and `.pst` archives can now be imported directly. OST/OLM and other unsupported formats must first be exported to EML/MBOX. Very large archives consume RAM; PST files are limited to 2 GB and other files to 100 MB. Attached emails remain downloadable as original message files.
+HTML scripts, links, remote images, and external styles are blocked. CID inline images are offered as downloadable attachments rather than embedded in HTML. Encrypted messages are not decrypted, signatures are not verified, and Outlook `.msg` messages and `.pst` archives can now be imported directly. OST/OLM and other unsupported formats must first be exported to EML/MBOX. Sessions are limited to 25,000 messages and 512 MiB of counted session data; peak parsing memory can be higher. Very large archives consume RAM; PST files are limited to 2 GB and other files to 100 MB. Attached emails remain downloadable as original message files.
 
 The server accepts only its bound localhost hostname and port, and rejects foreign origins before returning the session token or processing changes. An interrupted upload is rejected before new messages enter the session.
 
@@ -49,7 +53,7 @@ The original hero artwork is included locally; no online assets are needed.
 
 Use Preview beside an attachment to view:
 
-- PDF using your browser's PDF viewer.
+- PDF using bundled local PDF.js, with extracted page text available. PDF scripts and embedded actions are not run. Some fonts or image encodings may need another viewer.
 - JPG/JPEG, PNG, WebP, GIF, BMP, AVIF, and ICO images.
 - WebM, MP4, OGV, MOV video and MP3, WAV, OGG, M4A, FLAC audio, when your browser supports their codecs.
 - DOCX and supported Word 97–2003 DOC documents as text, without original page layout, embedded objects, or macros. Older, encrypted, and unsupported Word variants can be downloaded for another application.
@@ -114,3 +118,10 @@ Leave **Clean layout: fit content to the page** checked to remove email styling,
 PDFs include subject, sender, recipients, date, folder when available, message body, and attachment filenames. Attachment contents are not printed; export or print them separately. Remote images and active content remain blocked, and email data stays on your computer. PDF export uses the browser’s local print engine and works offline without an additional dependency. Download and restart the updated portable package to use these controls.
 
 PDF regression checks: `python3 -m unittest -v test_print_export.py`. For the browser check, install Playwright separately, start `python3 app.py --no-open --port 8792`, then run `node test_pdf_browser.cjs` with Playwright on Node’s module path. It covers current/selected messages, selections outside filters, layout controls, wrapping, and print invocation, and writes a sample multipage PDF under `/tmp/`.
+
+
+## Session protection
+
+Deletion starts in **This session only** mode. Choose original-file deletion explicitly and confirm before editing an archive. Keep your own backup; there is no undo. Clear session removes messages and deletion plans from the service and clears reader text, previews, selection and search inputs in the page. Exports, printouts, originals, OS swap and independent backups remain. Temporary files are deleted after normal parsing; an abrupt crash can leave remnants.
+
+Large message lists render in batches. Select results and group selection still include all matching messages, including those beyond the displayed batch.

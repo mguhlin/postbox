@@ -111,3 +111,22 @@ func uniqueWrite(dir, name string, body io.Reader) error {
 	}
 	return errors.New("Too many duplicate filenames")
 }
+
+// Create one level at a time, checking each existing component before descent.
+func exportDirectory(root string, parts ...string) (string, error) {
+	current, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", err
+	}
+	for _, part := range parts {
+		current = filepath.Join(current, safeName(part))
+		if err = os.Mkdir(current, 0700); err != nil && !os.IsExist(err) {
+			return "", err
+		}
+		info, err := os.Lstat(current)
+		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return "", errors.New("Export folder contains a symbolic link or invalid directory")
+		}
+	}
+	return current, nil
+}

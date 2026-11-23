@@ -70,3 +70,17 @@ func TestSymlinkIsNotManagedOriginal(t *testing.T) {
 		t.Fatal("symbolic link accepted")
 	}
 }
+
+func TestExportRejectsSymlinkBeforeCreatingOutsideDirectory(t *testing.T) {
+	root, outside := t.TempDir(), t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(root, "2024")); err != nil {
+		t.Skip(err)
+	}
+	if _, err := exportDirectory(root, "2024", "03", "mail"); err == nil {
+		t.Fatal("symlink export accepted")
+	}
+	entries, _ := os.ReadDir(outside)
+	if len(entries) != 0 {
+		t.Fatal("created directories outside selected root")
+	}
+}

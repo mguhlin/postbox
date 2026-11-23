@@ -9,3 +9,5 @@ Postbox Desktop's window, native file controls and application integration are w
 - Windows WebView2 offline installer: Microsoft software, distributed under Microsoft's runtime terms. Publisher signature is verified during packaging; `webview2-runtime.json` records its version and checksum. The installer runs only if the user needs to install that system runtime.
 
 System WebKit/GTK or Apple's WKWebView are used on Linux/macOS. They are not fetched by Postbox. Public example addresses in checks are fictional.
+
+PDF attachment previews use Mozilla PDF.js (`pdfjs-dist` 6.5.438, Apache-2.0). Its scripts, worker, CMaps and standard fonts are bundled under `resources/app/vendor/pdfjs/`; that directory includes its license, font notices, and package integrity provenance. PDF scripts and embedded actions are not executed by the preview.

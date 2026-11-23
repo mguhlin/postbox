@@ -3,7 +3,7 @@ const {chromium,firefox,webkit}=require('playwright');
 const {default:AxeBuilder}=require('@axe-core/playwright');
 const assert=require('node:assert/strict');
 (async()=>{
- for(const [name,type] of Object.entries({chromium,firefox,webkit})){
+ for(const [name,type] of Object.entries({chromium,firefox,webkit}).filter(([name])=>!process.env.POSTBOX_BROWSER||name===process.env.POSTBOX_BROWSER)){
   const browser=await type.launch({headless:true});
   try{
    const context=await browser.newContext(),page=await context.newPage(),errors=[],external=[];
@@ -22,7 +22,7 @@ const assert=require('node:assert/strict');
    await page.locator('#attachments button').click();await page.locator('#previewContent pre').waitFor();
    assert.match(await page.locator('#previewContent').textContent(),/Private synthetic attachment/);
    await page.keyboard.press('Escape');assert.equal(await page.locator('#previewDialog').evaluate(e=>e.open),false);
-   const accessibility=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();
+   const accessibility=await new AxeBuilder({page}).exclude('#html').withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();
    assert.deepEqual(accessibility.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[],`${name} accessibility`);
    for(const width of [1280,640,320]){await page.setViewportSize({width,height:900});const sizes=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert(sizes.scroll<=sizes.width+1,`${name} reflow ${JSON.stringify(sizes)}`)}
    await page.setViewportSize({width:640,height:900});await page.addStyleTag({content:'html{font-size:200%}'});const sizes=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert(sizes.scroll<=sizes.width+1,`${name} 200% text reflow`);

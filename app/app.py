@@ -65,6 +65,13 @@ class SafeEmailHTML(HTMLParser):
             if key in self.attributes or (tag == 'img' and key == 'src' and value.lower().startswith(
                     ('data:image/png;', 'data:image/jpeg;', 'data:image/gif;', 'data:image/webp;', 'data:image/avif;'))):
                 safe.append(f' {key}="{html_module.escape(value, quote=True)}"')
+        if tag == 'img':
+            if not any(item.startswith(' src=') for item in safe):
+                alt = next((value for key, value in attrs if key == 'alt' and value), '[Remote or missing image blocked]')
+                self.output.append('<span>' + html_module.escape(alt) + '</span>')
+                return
+            if not any(item.startswith(' alt=') for item in safe):
+                safe.append(' alt="Embedded email image"')
         self.output.append('<' + tag + ''.join(safe) + '>')
         self.in_style = tag == 'style' or self.in_style
 
@@ -350,7 +357,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def handle_get(self):
         path = urlparse(self.path).path
-        if path in ('/pdf-preview.html', '/pdf-preview.mjs') or path.startswith('/vendor/pdfjs/'):
+        if path in ('/pdf-preview.html', '/pdf-preview.mjs', '/pdf-errors.js') or path.startswith('/vendor/pdfjs/'):
             target = (ROOT / path.lstrip('/')).resolve()
             vendor = (ROOT / 'vendor/pdfjs').resolve()
             if (path.startswith('/vendor/pdfjs/') and (vendor not in target.parents or target.suffix not in ('.mjs', '.bcmap', '.ttf', '.pfb'))):
@@ -359,7 +366,7 @@ class Handler(BaseHTTPRequestHandler):
             if not target.is_file():
                 self.send('{}', status=404)
                 return
-            kind = 'text/javascript' if target.suffix == '.mjs' else 'text/html' if target.suffix == '.html' else 'application/octet-stream'
+            kind = 'text/javascript' if target.suffix in ('.js', '.mjs') else 'text/html' if target.suffix == '.html' else 'application/octet-stream'
             self.send(target.read_bytes(), kind)
             return
         if path in ('/about.html', '/theme.css'):

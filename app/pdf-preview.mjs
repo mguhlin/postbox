@@ -17,6 +17,6 @@ try{
   }
   more.hidden=next>pdf.numPages;status.textContent=`${next-1} of ${pdf.numPages} PDF pages shown. Content is processed locally; PDF scripts and embedded actions are not run.`;
  }
- more.onclick=()=>batch().catch(showError);await batch();
+ more.onclick=()=>batch().catch(showError);await batch();parent.postMessage({type:"postbox-pdf-preview",ready:true},"*");
 }catch(error){showError(error)}
-function showError(error){status.textContent='PDF preview unavailable. Save the original attachment to open it in a compatible PDF reader.';more.hidden=true}
+function showError(error){globalThis.previewError=error.message;parent.postMessage({type:"postbox-pdf-preview",ready:false,error:String(error.message)},"*");status.dataset.failed='true';status.textContent='PDF preview unavailable. Save the original attachment to open it in a compatible PDF reader.';more.hidden=true}
