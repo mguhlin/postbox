@@ -26,6 +26,7 @@ from previews import MEDIA, preview_kind, text_preview
 from organizer import digest, remove_attachments, rebuild_source, safe_filename
 from outlook import import_msg, import_pst
 from print_export import print_document
+from html_safety import safe_css
 MESSAGES = {}
 SOURCES = {}
 PLANS = {}
@@ -57,6 +58,10 @@ class SafeEmailHTML(HTMLParser):
         for key, value in attrs:
             if value is None:
                 continue
+            if key == 'style':
+                value = safe_css(value)
+                if not value:
+                    continue
             if key in self.attributes or (tag == 'img' and key == 'src' and value.lower().startswith(
                     ('data:image/png;', 'data:image/jpeg;', 'data:image/gif;', 'data:image/webp;', 'data:image/avif;'))):
                 safe.append(f' {key}="{html_module.escape(value, quote=True)}"')
@@ -79,7 +84,7 @@ class SafeEmailHTML(HTMLParser):
 
     def handle_data(self, data):
         if not self.suppressed:
-            self.output.append(data if self.in_style else html_module.escape(data))
+            self.output.append(safe_css(data) if self.in_style else html_module.escape(data))
 
 
 def safe_html(content):
@@ -345,6 +350,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def handle_get(self):
         path = urlparse(self.path).path
+        if path in ('/pdf-preview.html', '/pdf-preview.mjs') or path.startswith('/vendor/pdfjs/'):
+            target = (ROOT / path.lstrip('/')).resolve()
+            vendor = (ROOT / 'vendor/pdfjs').resolve()
+            if (path.startswith('/vendor/pdfjs/') and (vendor not in target.parents or target.suffix not in ('.mjs', '.bcmap', '.ttf', '.pfb'))):
+                self.send('{}', status=404)
+                return
+            if not target.is_file():
+                self.send('{}', status=404)
+                return
+            kind = 'text/javascript' if target.suffix == '.mjs' else 'text/html' if target.suffix == '.html' else 'application/octet-stream'
+            self.send(target.read_bytes(), kind)
+            return
         if path in ('/about.html', '/theme.css'):
             name = path[1:]
             kind = 'text/html' if name.endswith('.html') else 'text/css'

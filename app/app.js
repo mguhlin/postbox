@@ -88,7 +88,7 @@ function render() {
     check.indeterminate=!check.checked&&members.some(m=>selectedMessages.has(m.id));
     label.append(check,document.createTextNode('Select group'));label.addEventListener('click',e=>e.stopPropagation());
     check.onchange=()=>{members.forEach(m=>check.checked?selectedMessages.add(m.id):selectedMessages.delete(m.id));render()};
-    summary.append(label);detail.append(summary);parent.append(detail);groups.set(key,detail);return detail;
+    label.className='group-select';detail.append(summary,label);parent.append(detail);groups.set(key,detail);return detail;
   }
   for (const m of filtered.slice(0,visibleLimit)) {
     let parent=$('list');const year=m.dateKey?m.dateKey.slice(0,4):'Undated', month=m.dateKey?m.dateKey.slice(0,7):'Undated';
@@ -219,7 +219,7 @@ async function previewAttachment(m,a,index) {
     try{const response=await fetch(source),text=await response.text();if(request!==previewRequest)return;const pre=document.createElement('pre');pre.textContent=text;container.replaceChildren(pre)}catch(e){if(request===previewRequest)container.textContent='Preview failed. Download the original file to open it.'}
   }else {
     const tag={image:'img',video:'video',audio:'audio',pdf:'iframe'}[a.preview];if(!tag)return;
-    const element=document.createElement(tag);element.src=source;
+    const element=document.createElement(tag);element.src=a.preview==='pdf'?'/pdf-preview.html?source='+encodeURIComponent(source):source;
     if(tag==='img')element.alt=a.name;
     if(tag==='iframe'){element.title=a.name;element.referrerPolicy='no-referrer'}
     if(tag==='audio'||tag==='video'){element.controls=true;element.preload='metadata'}

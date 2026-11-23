@@ -1,6 +1,7 @@
 """Offline print documents for single-message and selected-message PDF export."""
 from html import escape
 from html.parser import HTMLParser
+from html_safety import safe_css
 
 
 class PrintBody(HTMLParser):
@@ -23,6 +24,10 @@ class PrintBody(HTMLParser):
         for key, value in attrs:
             if value is None:
                 continue
+            if key == 'style':
+                value = safe_css(value)
+                if not value:
+                    continue
             if key in ('alt', 'title', 'colspan', 'rowspan', 'dir', 'lang') or (
                 key == 'style' and not self.clean
             ) or (tag == 'img' and key == 'src' and value.lower().startswith(

@@ -26,8 +26,9 @@ def resources(platform, destination):
     app = destination / 'app'
     app.mkdir(exist_ok=True)
     for path in (ROOT / 'app').iterdir():
-        if path.is_file() and path.suffix in ('.py', '.js', '.cjs', '.css', '.html', '.md', '.txt', '.png', '.json'):
+        if path.is_file() and path.suffix in ('.py', '.js', '.mjs', '.cjs', '.css', '.html', '.md', '.txt', '.png', '.json'):
             shutil.copy2(path, app / path.name)
+    shutil.copytree(ROOT / 'app/vendor/pdfjs', app / 'vendor/pdfjs', dirs_exist_ok=True)
     shutil.copytree(ROOT / 'app' / 'licenses', app / 'licenses', dirs_exist_ok=True)
     if platform in MAC_RUNTIMES:
         arch, checksum = MAC_RUNTIMES[platform]
@@ -67,6 +68,7 @@ def resources(platform, destination):
     # Confirm that the distributed interpreter really imports the native PST reader.
     python = destination / 'runtime' / ('python.exe' if platform.startswith('windows') else 'python/bin/python3')
     subprocess.run([str(python), '-I', str(DESKTOP / 'scripts/check_runtime.py'), str(app)], check=True)
+    subprocess.run([str(python), '-I', '-m', 'unittest', 'discover', '-s', str(app), '-p', 'test_*.py'], check=True)
     return app
 
 

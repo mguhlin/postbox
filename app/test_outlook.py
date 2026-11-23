@@ -4,6 +4,7 @@ import mailbox
 import tempfile
 import types
 import unittest
+import sys
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
@@ -119,6 +120,8 @@ class OutlookTest(unittest.TestCase):
             self.assertEqual(parsed['attachments'][0]['data'], b'attachment data')
 
     def test_bundled_native_reader_loads(self):
+        if sys.platform == 'darwin' and not (Path(outlook.__file__).parent / 'vendor/macos').exists():
+            self.skipTest('The Mac reader is built and verified in the packaged-runtime checks.')
         self.assertEqual(outlook.pst_reader().get_version(), '20260926')
 
     def test_invalid_pst_rejected(self):

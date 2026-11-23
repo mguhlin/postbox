@@ -10,3 +10,5 @@ header{min-height:160px}header>div{background:#351b58ed}#bulk button{min-height:
 main{grid-template-columns:minmax(270px,350px) minmax(0,1fr)}#meta{grid-template-columns:4.5rem minmax(0,1fr)}#previewTitle{overflow-wrap:anywhere}
 @media(max-width:760px){main{grid-template-columns:minmax(0,1fr)}header{flex-wrap:wrap}header>div{max-width:100%}.header-links{margin-left:0}nav,#bulk,article,aside{padding:1rem}#attachments>div{max-width:100%}#bulk>*{max-width:100%}.reader-actions{margin-left:0}dialog{padding:1rem}#empty{max-width:100%}input[type=date]{min-width:0;width:100%}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+.group-select{display:flex;gap:.5rem;align-items:center;font-size:.875rem;padding:.25rem .5rem .75rem}.group-select input{width:24px;height:24px}
