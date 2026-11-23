@@ -37,16 +37,18 @@ type Message struct {
 	} `json:"attachments"`
 }
 type Bridge struct {
-	Engine    *engine.Engine
-	Dialogs   Dialogs
-	mu        sync.Mutex
-	sources   map[string]string
-	messages  map[string]Message
-	views     map[string]string
-	nextView  int
-	DesktopJS []byte
-	PrintJS   []byte
-	Smoke     func(json.RawMessage) error
+	Engine     *engine.Engine
+	Dialogs    Dialogs
+	mu         sync.Mutex
+	sources    map[string]string
+	messages   map[string]Message
+	views      map[string]string
+	dropTicket string
+	dropPaths  []string
+	nextView   int
+	DesktopJS  []byte
+	PrintJS    []byte
+	Smoke      func(json.RawMessage) error
 }
 
 func New(e *engine.Engine, d Dialogs) *Bridge {
@@ -165,6 +167,8 @@ func (b *Bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		b.sources = map[string]string{}
 		b.messages = map[string]Message{}
 		b.views = map[string]string{}
+		b.dropTicket = ""
+		b.dropPaths = nil
 		b.mu.Unlock()
 		b.Dialogs.ClearPreviews()
 	}
@@ -218,31 +222,17 @@ func (b *Bridge) action(ctx context.Context, path string, p map[string]json.RawM
 				return nil, err
 			}
 		}
-		results := []json.RawMessage{}
-		failures := []string{}
-		for _, path := range paths {
-			if !supported(path) {
-				continue
-			}
-			duplicate := false
-			for _, known := range b.sources {
-				if known == path {
-					duplicate = true
-					break
-				}
-			}
-			if duplicate {
-				continue
-			}
-			raw, err := b.importFile(ctx, path)
-			if err != nil {
-				failures = append(failures, filepath.Base(path)+": "+err.Error())
-				continue
-			}
-			b.remember(raw, path)
-			results = append(results, raw)
+		return b.importPaths(ctx, paths, true)
+	case "/desktop/drop":
+		ticket, err := value[string](p, "ticket")
+		if err != nil {
+			return nil, err
 		}
-		return map[string]any{"imports": results, "errors": failures}, nil
+		paths, err := b.takeDrop(ticket)
+		if err != nil {
+			return nil, err
+		}
+		return b.importPaths(ctx, paths, false)
 	case "/desktop/export":
 		route, err := value[string](p, "route")
 		if err != nil || !(route == "/export" || route == "/export-emails") {

@@ -70,7 +70,8 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $path = 'desktop/build/MicrosoftEdgeWebView2RuntimeInstallerX64.exe'
-          Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $path
+          Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124701' -OutFile $path
+          if ((Get-Item $path).Length -lt 50MB) { throw 'Expected the full offline runtime installer, not the online bootstrapper' }
           $signature = Get-AuthenticodeSignature $path
           if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') { throw 'Microsoft runtime publisher verification failed' }
           @{ filename = (Split-Path $path -Leaf); sha256 = (Get-FileHash $path -Algorithm SHA256).Hash.ToLower(); version = (Get-Item $path).VersionInfo.FileVersion; publisher = $signature.SignerCertificate.Subject } | ConvertTo-Json | Set-Content -Encoding utf8 desktop/build/webview2-runtime.json

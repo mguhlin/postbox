@@ -5,9 +5,12 @@ window.POSTBOX_DESKTOP={
   let result;try{result=await response.json()}catch(e){throw Error('The desktop action failed. Close and reopen Postbox if the mail engine stopped.')}
   if(!response.ok)throw Error(result.error||'Desktop action failed.');return result;
  },
- async open(folder){
-  if(busy)return;setBusy(true);setStatus('Choose your email '+(folder?'folder':'files')+'…');
-  try{const result=await this.call('open',{folder});let count=0;
+ async open(folder){return this.import('open',{folder})},
+ async drop(ticket){return this.import('drop',{ticket})},
+ async import(action,payload){
+  document.body.classList.remove('drag');
+  if(busy){setStatus('Finish the current operation, then open or drop the files again.');return}setBusy(true);setStatus('Opening email exports…');
+  try{const result=await this.call(action,payload);let count=0;
    for(const imported of result.imports){messages.push(...imported);count+=imported.length}
    if(!selected&&messages.length)show(messages[0]);else render();
    $('importReport').textContent=result.errors.join('\n');$('importReport').hidden=!result.errors.length;
@@ -27,6 +30,7 @@ window.POSTBOX_DESKTOP={
  delete(payload){return this.call('delete',payload)}
 };
 document.addEventListener('DOMContentLoaded',()=>{
+ document.body.setAttribute('data-file-drop-target','');
  $('folder').textContent='Open managed folder';$('pdfPreview').textContent='Open desktop print preview';
  document.querySelector('.bulk-note').textContent='Filter by dates, select results, or Shift-click checkboxes. The desktop Open controls manage originals. Imported copies can reconnect to a chosen original folder before editing. Session-only deletion keeps originals. Exported copies remain on disk.';
  document.querySelector('.preview-note').textContent='Documents show text previews. PDF and media playback depend on the system webview and codecs. Save a file to open it in another application.';

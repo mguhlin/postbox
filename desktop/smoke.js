@@ -3,6 +3,7 @@
  const checks=[];const check=(value,name)=>{if(!value)throw Error(name);checks.push(name)};
  try{
   await wait(()=>typeof window.POSTBOX_DESKTOP!=='undefined'&&typeof openFiles==='function'&&document.getElementById('count'));
+  await window.POSTBOX_DESKTOP.drop(window.POSTBOX_SMOKE_DROP_TICKET);check(messages.length===1,'Native single-use drop capability imports a copy');await $('clear').onclick();
   await openFiles();check(messages.length===1,'Native Open streams an EML into the shared mail engine');
   const m=messages[0];check(matchesQuery(m,'body:budget has:attachment'),'Search includes HTML text and attachment names');check(m.hasHtml,'HTML import');
   check(getComputedStyle(document.querySelector('header')).backgroundColor!=='rgb(25, 63, 57)','Theme stylesheet loaded');

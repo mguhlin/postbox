@@ -472,7 +472,7 @@ function init() {
   };
   document.addEventListener('dragover',e=>{e.preventDefault();document.body.classList.add('drag')});
   document.addEventListener('dragleave',e=>{if(!e.relatedTarget)document.body.classList.remove('drag')});
-  document.addEventListener('drop',e=>{e.preventDefault();document.body.classList.remove('drag');loadFiles(e.dataTransfer.files)});
+  document.addEventListener('drop',e=>{e.preventDefault();document.body.classList.remove('drag');if(!window.POSTBOX_DESKTOP)loadFiles(e.dataTransfer.files)});
   if(!window.showDirectoryPicker&&!window.POSTBOX_DESKTOP)$('folder').textContent='Import folder';
   render();
 }

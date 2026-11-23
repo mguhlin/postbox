@@ -24,7 +24,7 @@ import (
 
 //go:embed desktop.js desktop-print.js smoke.js postbox.png
 var assets embed.FS
-var version = "2.0.0"
+var version = "2.0.1"
 
 type dialogs struct {
 	app            *application.App
@@ -134,9 +134,20 @@ func main() {
 	b.PrintJS, _ = assets.ReadFile("desktop-print.js")
 	icon, _ := assets.ReadFile("postbox.png")
 	d.app = application.New(application.Options{Name: "Postbox", Icon: icon, Description: "Offline email archives — " + version, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), Mac: application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true}, Assets: application.AssetOptions{Handler: b}, OnShutdown: e.Close})
-	d.main = d.app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "Postbox", Width: 1360, Height: 900, MinWidth: 360, MinHeight: 500, URL: "/"})
+	d.main = d.app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "Postbox", Width: 1360, Height: 900, MinWidth: 360, MinHeight: 500, EnableFileDrop: true, URL: "/"})
+	d.main.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
+		ticket := b.OfferDrop(event.Context().DroppedFiles())
+		if ticket == "" {
+			return
+		}
+		raw, _ := json.Marshal(ticket)
+		d.main.ExecJS("window.POSTBOX_DESKTOP.drop(" + string(raw) + ")")
+	})
 	d.main.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) { d.ClearPreviews() })
 	if *smoke != "" {
+		ticket := b.OfferDrop([]string{filepath.Join(*smoke, "input", "sample.eml")})
+		raw, _ := json.Marshal(ticket)
+		b.DesktopJS = append(b.DesktopJS, []byte("\nwindow.POSTBOX_SMOKE_DROP_TICKET="+string(raw)+";\n")...)
 		js, _ := assets.ReadFile("smoke.js")
 		b.DesktopJS = append(b.DesktopJS, js...)
 		b.Smoke = func(raw json.RawMessage) error {

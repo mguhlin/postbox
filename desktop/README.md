@@ -27,7 +27,7 @@ Sessions hold parsed messages in memory; use **Clear session** or close the app 
 
 ## Build from source
 
-Use Go 1.26+ and the target operating system. Dependency checksums are pinned in `go.sum`. The workflow in `.github/workflows/desktop.yml` builds each target on a matching OS runner, verifies the packaged runtime's PST reader, runs native smoke checks, then creates release archives and SHA-256 files.
+Use Go 1.26+, Python 3.12+ for packaging, and the target operating system. Dependency checksums are pinned in `go.sum`. The workflow in `.github/workflows/desktop.yml` builds each target on a matching OS runner, verifies the packaged runtime's PST reader, runs native smoke checks, then creates release archives and SHA-256 files.
 
 ```sh
 cd desktop

@@ -1,3 +1,5 @@
+Postbox Desktop 2.0.1 completes native OS file dropping through single-use import capabilities and includes the full publisher-verified Microsoft WebView2 standalone installer for offline setup. Linux packaging preserves runtime symbolic links to avoid duplicate interpreter files.
+
 Postbox now runs in a Go desktop window on Windows x64, Linux x64, and Apple Silicon/Intel macOS. Its bundled shared mail engine preserves EML, MSG, PST, MBOX/MBX import, search, grouping, selection, previews, native file saves, attachment folders, EML/MBOX exports, PDF/print preview, and confirmed original/session deletion. No separate browser, Python setup, account, or internet connection is needed at runtime.
 
 Extract the complete download. Windows includes Microsoft's offline WebView2 installer if that system runtime is missing. Linux uses system GTK3/WebKitGTK 4.1; install those prerequisites before offline use. Mac apps are ad hoc signed and are not notarized by Apple. Windows executables are unsigned. See START HERE.md for platform instructions and limits.

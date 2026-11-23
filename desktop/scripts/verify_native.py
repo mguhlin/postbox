@@ -6,7 +6,7 @@ from pathlib import Path
 root = Path(sys.argv[1])
 report = json.loads((root / 'native-result.json').read_text())
 assert report['ok'], report
-assert len(report['checks']) >= 15, report
+assert len(report['checks']) >= 16, report
 exports = root / 'exports'
 assert (exports / 'proof.txt').read_bytes().strip() == b'Attachment content'
 with zipfile.ZipFile(exports / 'Postbox-emails.zip') as archive:

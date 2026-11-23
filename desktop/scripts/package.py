@@ -63,7 +63,7 @@ def resources(platform, destination):
         else:
             with tarfile.open(ROOT / 'downloads' / (original + '.tar.gz')) as source:
                 source.extractall(staging, filter='data')
-        shutil.copytree(staging / original / 'runtime', destination / 'runtime', dirs_exist_ok=True)
+        shutil.copytree(staging / original / 'runtime', destination / 'runtime', dirs_exist_ok=True, symlinks=True)
         vendor = 'windows' if platform.startswith('windows') else 'linux'
         shutil.copytree(ROOT / 'app/vendor' / vendor, app / 'vendor' / vendor, dirs_exist_ok=True)
     # Confirm that the distributed interpreter really imports the native PST reader.
@@ -88,7 +88,7 @@ def package(platform, binary):
         with (bundle / 'Info.plist').open('wb') as target:
             plistlib.dump({'CFBundleName': 'Postbox', 'CFBundleDisplayName': 'Postbox', 'CFBundleExecutable': 'Postbox',
                           'CFBundleIconFile': 'Postbox.icns', 'CFBundleIdentifier': 'org.mguhlin.postbox', 'CFBundlePackageType': 'APPL',
-                          'CFBundleShortVersionString': '2.0.0', 'CFBundleVersion': '2.0.0',
+                          'CFBundleShortVersionString': '2.0.1', 'CFBundleVersion': '2.0.1',
                           'LSMinimumSystemVersion': '13.0', 'NSHighResolutionCapable': True}, target)
     else:
         shutil.copy2(binary, folder / ('Postbox.exe' if platform.startswith('windows') else 'Postbox'))
