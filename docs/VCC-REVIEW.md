@@ -52,7 +52,7 @@ Developer responsibility: retain local defaults, documented controls and accessi
 | Foundation | Result / evidence |
 | --- | --- |
 | Reproducible setup | Pinned Go modules; packaged Python; architecture-specific Mac PST build; scripts verify the distributed interpreter; native build workflow and guides. |
-| Diagnosable failures | Invalid actions return useful errors; native save/import/export cancellation is distinct from success; disk/session partial completion is explicit; no remote logger. |
+| Diagnosable failures | Invalid actions return useful errors; startup failures get a native recovery window; native save/import/export cancellation is distinct from success; disk/session partial completion is explicit; no remote logger. |
 | Trust boundaries | Host/origin/token checks preserved; isolated mail, private native service, scoped file selections, bounded inputs, no runtime application downloads. |
 | Maintainable boundaries | Shared HTML/CSS/JS/Python features; Go engine/process, bridge, native window/dialog and packaging responsibilities are separate. Atomic-write failure and nearby export cases have regression tests. |
 
