@@ -7,8 +7,8 @@ A Go desktop application for Windows, macOS, and Linux. Read exported email in a
 Extract the entire download and keep its contents together.
 
 - **Windows 10/11 x64:** open `Postbox.exe`. If WebView2 is missing, run the included Microsoft offline runtime installer first. It works without an internet connection. The app is unsigned; Windows may show a publisher warning.
-- **macOS 12+ Apple Silicon:** use the arm64 download and open `Postbox.app`.
-- **macOS 12+ Intel:** use the x64 download and open `Postbox.app`. Mac packages are ad hoc signed, not Apple notarized; Gatekeeper may require the normal Privacy & Security approval for software downloaded outside the App Store. Organization policy can prohibit unsigned software.
+- **macOS 13+ Apple Silicon:** use the arm64 download and open `Postbox.app`.
+- **macOS 13+ Intel:** use the x64 download and open `Postbox.app`. Mac packages are ad hoc signed, not Apple notarized; Gatekeeper may require the normal Privacy & Security approval for software downloaded outside the App Store. Organization policy can prohibit unsigned software.
 - **Linux x64:** run `./Postbox`. GTK 3 and WebKitGTK 4.1 must already be installed by your operating system. On Debian/Ubuntu their package names are `libgtk-3-0` (or `libgtk-3-0t64`) and `libwebkit2gtk-4.1-0`. These system components may need an administrator's initial setup; Postbox itself never downloads them. Alpine/musl and ARM Linux are not supported by this package.
 
 Closing the Postbox window stops its local mail engine. No launcher terminal needs to stay open. User exports remain on disk.

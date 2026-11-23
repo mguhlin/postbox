@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"log/slog"
 	"os"
@@ -21,7 +22,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-//go:embed desktop.js desktop-print.js smoke.js
+//go:embed desktop.js desktop-print.js smoke.js postbox.png
 var assets embed.FS
 var version = "2.0.0"
 
@@ -117,6 +118,7 @@ func main() {
 	e, err := engine.Start(*resources)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		showStartupError(err)
 		os.Exit(1)
 	}
 	d := &dialogs{previews: map[string]*application.WebviewWindow{}, smoke: *smoke}
@@ -130,7 +132,8 @@ func main() {
 	d.onPreviewClose = b.DropPreview
 	b.DesktopJS, _ = assets.ReadFile("desktop.js")
 	b.PrintJS, _ = assets.ReadFile("desktop-print.js")
-	d.app = application.New(application.Options{Name: "Postbox", Description: "Offline email archives — " + version, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), Mac: application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true}, Assets: application.AssetOptions{Handler: b}, OnShutdown: e.Close})
+	icon, _ := assets.ReadFile("postbox.png")
+	d.app = application.New(application.Options{Name: "Postbox", Icon: icon, Description: "Offline email archives — " + version, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), Mac: application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true}, Assets: application.AssetOptions{Handler: b}, OnShutdown: e.Close})
 	d.main = d.app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "Postbox", Width: 1360, Height: 900, MinWidth: 360, MinHeight: 500, URL: "/"})
 	d.main.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) { d.ClearPreviews() })
 	if *smoke != "" {
@@ -190,4 +193,10 @@ func prepareSmoke(dir string) error {
 		}
 	}
 	return os.WriteFile(filepath.Join(dir, "input", "sample.eml"), []byte("From: Ada <ada@example.invalid>\r\nTo: Grace <grace@example.invalid>\r\nSubject: Synthetic native check\r\nDate: Tue, 12 Mar 2024 10:00:00 -0600\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=check\r\n\r\n--check\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<h2>Offline synthetic email</h2><p>Budget approved.</p><script>alert('blocked')</script><img src=\"https://example.invalid/tracker\">\r\n--check\r\nContent-Type: text/plain\r\nContent-Disposition: attachment; filename=proof.txt\r\n\r\nAttachment content\r\n--check\r\nContent-Type: application/pdf\r\nContent-Disposition: attachment; filename=proof.pdf\r\nContent-Transfer-Encoding: base64\r\n\r\n"+base64.StdEncoding.EncodeToString(samplePDF())+"\r\n--check--\r\n"), 0600)
+}
+
+func showStartupError(err error) {
+	app := application.New(application.Options{Name: "Postbox", Mac: application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "Postbox — unable to start", Width: 680, Height: 360, HTML: `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>Postbox startup</title><style>body{margin:2rem;color:#302044;background:#faf7ff;font:1rem/1.6 system-ui,sans-serif}p{overflow-wrap:anywhere}</style></head><body><h1>Postbox could not start</h1><p>` + html.EscapeString(err.Error()) + `</p><p>Extract the complete download, keep the application and resources together, then open Postbox again. Close this window to exit.</p></body></html>`})
+	_ = app.Run()
 }

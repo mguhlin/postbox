@@ -26,7 +26,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       PYTHONUTF8: '1'
-      MACOSX_DEPLOYMENT_TARGET: '12.0'
+      MACOSX_DEPLOYMENT_TARGET: '13.0'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -117,6 +117,13 @@ jobs:
       - name: Archive and checksum verified application
         shell: bash
         run: python desktop/scripts/package.py --platform '${{ matrix.platform }}' --archive-only desktop/build/Postbox-Desktop-${{ matrix.platform }}
+      - name: Verify extracted Mac app signature
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p desktop/build/extracted
+          ditto -x -k desktop/build/release/Postbox-Desktop-${{ matrix.platform }}.zip desktop/build/extracted
+          codesign --verify --deep --strict desktop/build/extracted/Postbox-Desktop-${{ matrix.platform }}/Postbox.app
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.platform }}
@@ -172,7 +179,9 @@ jobs:
         run: |
           python3 app.py --no-open --port 8792 &
           viewer_pid=$!
-          trap 'kill "$viewer_pid" 2>/dev/null || true' EXIT
+          python3 -m http.server 8793 --bind 127.0.0.1 --directory .. &
+          site_pid=$!
+          trap 'kill "$viewer_pid" "$site_pid" 2>/dev/null || true' EXIT
           python3 - <<'PY'
           import time, urllib.request
           for attempt in range(30):
@@ -186,3 +195,4 @@ jobs:
           PY
           npm run test:browser
           node test_pdf_browser.cjs
+          node ../scripts/test_site.cjs

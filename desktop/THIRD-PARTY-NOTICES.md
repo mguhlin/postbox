@@ -11,3 +11,5 @@ Postbox Desktop's window, native file controls and application integration are w
 System WebKit/GTK or Apple's WKWebView are used on Linux/macOS. They are not fetched by Postbox. Public example addresses in checks are fictional.
 
 PDF attachment previews use Mozilla PDF.js (`pdfjs-dist` 6.5.438, Apache-2.0). Its scripts, worker, CMaps and standard fonts are bundled under `resources/app/vendor/pdfjs/`; that directory includes its license, font notices, and package integrity provenance. PDF scripts and embedded actions are not executed by the preview.
+
+The PDF.js compatibility build includes core-js 3.51.0 polyfills (MIT); its notice is retained in `app/vendor/pdfjs/CORE-JS-LICENSE`.

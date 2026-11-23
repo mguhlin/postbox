@@ -6,6 +6,7 @@ import json
 import os
 import plistlib
 import shutil
+import stat
 import subprocess
 import tarfile
 import urllib.request
@@ -67,8 +68,9 @@ def resources(platform, destination):
         shutil.copytree(ROOT / 'app/vendor' / vendor, app / 'vendor' / vendor, dirs_exist_ok=True)
     # Confirm that the distributed interpreter really imports the native PST reader.
     python = destination / 'runtime' / ('python.exe' if platform.startswith('windows') else 'python/bin/python3')
-    subprocess.run([str(python), '-I', str(DESKTOP / 'scripts/check_runtime.py'), str(app)], check=True)
-    subprocess.run([str(python), '-I', '-m', 'unittest', 'discover', '-s', str(app), '-p', 'test_*.py'], check=True)
+    subprocess.run([str(python), '-I', '-B', str(DESKTOP / 'scripts/check_runtime.py'), str(app)], check=True)
+    subprocess.run([str(python), '-I', '-B', '-m', 'unittest', 'discover', '-s', str(app), '-p', 'test_*.py'], check=True)
+    shutil.rmtree(app / '__pycache__', ignore_errors=True)
     return app
 
 
@@ -85,13 +87,22 @@ def package(platform, binary):
         resource_dir = bundle / 'Resources'
         with (bundle / 'Info.plist').open('wb') as target:
             plistlib.dump({'CFBundleName': 'Postbox', 'CFBundleDisplayName': 'Postbox', 'CFBundleExecutable': 'Postbox',
-                          'CFBundleIdentifier': 'org.mguhlin.postbox', 'CFBundlePackageType': 'APPL',
+                          'CFBundleIconFile': 'Postbox.icns', 'CFBundleIdentifier': 'org.mguhlin.postbox', 'CFBundlePackageType': 'APPL',
                           'CFBundleShortVersionString': '2.0.0', 'CFBundleVersion': '2.0.0',
-                          'LSMinimumSystemVersion': '12.0', 'NSHighResolutionCapable': True}, target)
+                          'LSMinimumSystemVersion': '13.0', 'NSHighResolutionCapable': True}, target)
     else:
         shutil.copy2(binary, folder / ('Postbox.exe' if platform.startswith('windows') else 'Postbox'))
         resource_dir = folder / 'resources'
     resources(platform, resource_dir)
+    if platform.startswith('macos'):
+        iconset = OUT / 'Postbox.iconset'
+        iconset.mkdir(exist_ok=True)
+        for size in (16, 32, 128, 256, 512):
+            for scale in (1, 2):
+                target = iconset / f'icon_{size}x{size}{"@2x" if scale == 2 else ""}.png'
+                subprocess.run(['sips', '-z', str(size * scale), str(size * scale), str(DESKTOP / 'postbox.png'), '--out', str(target)], check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(['iconutil', '-c', 'icns', str(iconset), '-o', str(resource_dir / 'Postbox.icns')], check=True)
+
     shutil.copy2(ROOT / 'desktop/README.md', folder / 'START HERE.md')
     if platform.startswith('windows'):
         installer = OUT / 'MicrosoftEdgeWebView2RuntimeInstallerX64.exe'
@@ -118,7 +129,12 @@ def archive(folder):
         output = release / (folder.name + '.zip')
         with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as target:
             for file in folder.rglob('*'):
-                if file.is_file():
+                if file.is_symlink():
+                    info = zipfile.ZipInfo(str(file.relative_to(folder.parent)))
+                    info.create_system = 3
+                    info.external_attr = (stat.S_IFLNK | 0o777) << 16
+                    target.writestr(info, os.readlink(file))
+                elif file.is_file():
                     target.write(file, file.relative_to(folder.parent))
     checksum = hashlib.sha256(output.read_bytes()).hexdigest()
     (release / (output.name + '.sha256')).write_text(f'{checksum}  {output.name}\n')

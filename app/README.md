@@ -1,6 +1,6 @@
 # Postbox — browser edition
 
-For the native Go application on Windows, macOS and Linux, see the [desktop guide](../desktop/README.md). This guide describes the local browser edition, which uses the same mail engine and interface.
+For the native Go application on Windows, macOS and Linux, see the [desktop guide](https://github.com/mguhlin/postbox/blob/main/desktop/README.md). This guide describes the local browser edition, which uses the same mail engine and interface.
 
 [Privacy statement](https://mguhlin.github.io/postbox/privacy.html) · [Four-guide VCC review](https://github.com/mguhlin/postbox/blob/main/docs/VCC-REVIEW.md)
 

@@ -47,7 +47,7 @@ func Start(resources string) (*Engine, error) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	e := &Engine{key: hex.EncodeToString(key), cancel: cancel}
-	e.cmd = exec.CommandContext(ctx, python, "-I", filepath.Join(resources, "app", "app.py"), "--desktop", "--no-open")
+	e.cmd = exec.CommandContext(ctx, python, "-I", "-B", filepath.Join(resources, "app", "app.py"), "--desktop", "--no-open")
 	hideConsole(e.cmd)
 	e.cmd.Stdin = strings.NewReader(e.key + "\n")
 	// Do not inherit a console or write message contents/tracebacks to logs.

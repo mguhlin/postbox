@@ -5,3 +5,4 @@
 .mac-notice{margin-top:24px;padding:24px 30px;background:#f0e8ff;border:1px solid #d3b8ef;border-left:5px solid #7c3aed;border-radius:14px}.mac-notice h3{margin:10px 0;font-size:27px;color:#5b21b6}.mac-notice p:last-child{margin-bottom:0;color:var(--muted);font-size:14px}
 
 .download-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.download-card{min-width:0}.mac-downloads{display:grid;gap:.75rem}.download-card .button{width:100%;gap:.5rem}.file-detail{font-size:.875rem}.browser-downloads{margin:2rem 0;padding:1.25rem;border:1px solid var(--line);border-radius:12px}.browser-downloads summary{cursor:pointer;font-weight:700}.eyebrow,.platform,.feature-number{font-size:.875rem;letter-spacing:normal}.hero-note{font-size:.875rem}.site-header nav{flex-wrap:wrap}code{overflow-wrap:anywhere}@media(max-width:1000px){.download-grid{grid-template-columns:1fr}.download-card{padding:1.5rem}}
+.feature-number{color:#654580}
